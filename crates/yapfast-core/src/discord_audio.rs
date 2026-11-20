@@ -2254,7 +2254,6 @@ mod tests {
             .build()
             .unwrap();
         runtime.block_on(tokio::task::LocalSet::new().run_until(async {
-            let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
             let discord =
                 yapfast_discord::service::Discord::start(yapfast_discord::token::load().unwrap())
                     .unwrap();

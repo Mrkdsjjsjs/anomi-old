@@ -1,6 +1,6 @@
 //! One persistent voice connection, owned by a native thread rather than the UI.
-//! Matrix calls live in `matrix_voice` and Discord calls in `discord_voice`;
-//! this module runs whichever one is joined, and lists the devices both use.
+//! Discord calls live in `discord_voice`; this module runs the one joined,
+//! and lists the devices it uses.
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -13,8 +13,6 @@ use tokio::sync::{mpsc, watch};
 #[cfg(feature = "discord")]
 use yapfast_discord::service::Discord;
 
-#[cfg(feature = "matrix")]
-use crate::session::SessionLease;
 use yapfast_lang::tr;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -133,10 +131,20 @@ pub struct StreamQuality {
     /// The most the stream sends, in kbit/s, as the stream's menu chooses
     /// it; unset, the most Discord's client sends at the resolution. A
     /// ceiling, not a target: congestion control still lowers the rate. Kept
-    /// in `devices.json`, where a file from before it reads as unset.
+    /// in `devices.json`, where a file from before it reads as unset. Kept
+    /// as chosen: past [`DOCUMENTED_KBPS`], as the unlock allows, it counts
+    /// as that while the unlock is off ([`StreamQuality::limit`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_kbps: Option<u32>,
 }
+
+/// The most a stream sends by Discord's documentation, in kbit/s, as a
+/// limit past it counts without the unlock (Settings, Advanced, "Unlocked
+/// bitrate"); `stream_connection::DOCUMENTED_MAX` in bit/s.
+pub const DOCUMENTED_KBPS: u32 = 9_000;
+/// The most a limit may be with the unlock, in kbit/s;
+/// `stream_connection::UNLOCKED_MAX` in bit/s.
+pub const UNLOCKED_KBPS: u32 = 50_000;
 
 impl Default for StreamQuality {
     fn default() -> Self {
@@ -146,6 +154,21 @@ impl Default for StreamQuality {
             high_quality: false,
             max_kbps: None,
         }
+    }
+}
+
+impl StreamQuality {
+    /// The limit in force, in kbit/s, none for Auto: the one kept, at most
+    /// [`UNLOCKED_KBPS`] with the unlock, and without it at most
+    /// [`DOCUMENTED_KBPS`]. The one kept stays as chosen, so turning the
+    /// unlock on again brings it back.
+    pub fn limit(&self, unlocked: bool) -> Option<u32> {
+        let most = if unlocked {
+            UNLOCKED_KBPS
+        } else {
+            DOCUMENTED_KBPS
+        };
+        self.max_kbps.map(|kbps| kbps.min(most))
     }
 }
 
@@ -413,16 +436,10 @@ pub enum Command {
     /// Watch the participant with this id's stream.
     Watch(String),
     StopWatching,
-    /// Remove memberships this device left in voice channels, for example
-    /// after Yapfast was killed. Ignored during a call.
-    LeaveStale,
 }
 
-/// The networks whose voice channels can be joined, one call at a time.
+/// The network whose voice channels can be joined, one call at a time.
 pub(crate) struct Calls {
-    /// The session lease holds the SDK store lock until native departure finishes.
-    #[cfg(feature = "matrix")]
-    pub session: SessionLease,
     /// The linked Discord account, which linking or unlinking changes while
     /// Yapfast runs.
     #[cfg(feature = "discord")]
@@ -433,31 +450,12 @@ pub struct Controller {
     commands: Option<mpsc::UnboundedSender<Command>>,
     pub states: watch::Receiver<State>,
     thread: Option<thread::JoinHandle<()>>,
-    // What `restart` starts again with.
-    #[cfg(feature = "matrix")]
-    devices: Option<PathBuf>,
-    #[cfg(all(feature = "matrix", feature = "discord"))]
-    discord: watch::Receiver<Option<Discord>>,
 }
 
 impl Controller {
-    #[cfg(all(test, feature = "matrix"))]
-    pub(crate) fn start(session: SessionLease) -> Result<Self> {
-        let calls = Calls {
-            session,
-            #[cfg(feature = "discord")]
-            discord: watch::channel(None).1,
-        };
-        Self::start_remembering(calls, None)
-    }
-
     /// Starts with the devices chosen earlier on this machine, and saves each
     /// new choice to `devices`, a file that never leaves it.
     pub(crate) fn start_remembering(calls: Calls, devices: Option<PathBuf>) -> Result<Self> {
-        #[cfg(all(feature = "matrix", feature = "discord"))]
-        let discord = calls.discord.clone();
-        #[cfg(feature = "matrix")]
-        let remembered = devices.clone();
         let (commands, receiver) = mpsc::unbounded_channel();
         let mut initial = State::default();
         if let Some(path) = &devices {
@@ -496,24 +494,7 @@ impl Controller {
             commands: Some(commands),
             states: snapshots,
             thread: Some(worker),
-            #[cfg(feature = "matrix")]
-            devices: remembered,
-            #[cfg(all(feature = "matrix", feature = "discord"))]
-            discord,
         })
-    }
-
-    /// Starts the worker again after `stop`, as after a failed sign-out.
-    #[cfg(feature = "matrix")]
-    pub(crate) fn restart(&mut self, session: SessionLease) {
-        let calls = Calls {
-            session,
-            #[cfg(feature = "discord")]
-            discord: self.discord.clone(),
-        };
-        if let Ok(controller) = Self::start_remembering(calls, self.devices.clone()) {
-            *self = controller;
-        }
     }
 
     pub fn command(&self, command: Command) -> bool {
@@ -534,7 +515,7 @@ impl Drop for Controller {
     fn drop(&mut self) {
         self.commands.take();
         // Shutdown is bounded by the join and departure deadlines. Keep the
-        // process alive long enough to leave Matrix and release audio devices.
+        // process alive long enough to leave the call and release audio devices.
         if let Some(worker) = self.thread.take() {
             let _ = worker.join();
         }
@@ -597,8 +578,6 @@ async fn worker(
                 state.camera = Some(id);
                 Chosen::write(remembered.as_deref(), &state);
             }
-            #[cfg(feature = "matrix")]
-            Command::LeaveStale => crate::matrix_voice::leave_stale(&calls.session).await,
             _ => {}
         }
         snapshots.send_replace(state.clone());
@@ -646,12 +625,8 @@ async fn join(
             _ => Err(anyhow::anyhow!(tr!("Discord isn't linked on this device."))),
         };
     }
-    #[cfg(feature = "matrix")]
-    return crate::matrix_voice::call(&calls.session, id, state, commands, snapshots, remembered)
-        .await;
-    #[cfg(not(feature = "matrix"))]
     Err(anyhow::anyhow!(tr!(
-        "This build of Yapfast has no Matrix voice."
+        "Only Discord's voice channels can be joined."
     )))
 }
 
@@ -868,13 +843,47 @@ mod tests {
         assert!(Chosen::read(&path).speaker.is_none());
     }
 
+    /// A limit of 20 Mbit/s, chosen with the unlock, is kept on disk as it
+    /// was and counts as 9 while the unlock is off, then as 20 again.
+    #[test]
+    fn a_limit_past_discords_cap_is_kept_and_counts_only_unlocked() {
+        let quality = StreamQuality {
+            max_kbps: Some(20_000),
+            ..StreamQuality::default()
+        };
+        assert_eq!(quality.limit(false), Some(DOCUMENTED_KBPS));
+        assert_eq!(quality.limit(true), Some(20_000));
+        let most = StreamQuality {
+            max_kbps: Some(80_000),
+            ..quality
+        };
+        assert_eq!(most.limit(true), Some(UNLOCKED_KBPS));
+        assert_eq!(StreamQuality::default().limit(true), None, "Auto");
+        let low = StreamQuality {
+            max_kbps: Some(3_500),
+            ..quality
+        };
+        assert_eq!(low.limit(false), Some(3_500));
+        let folder = tempfile::tempdir().unwrap();
+        let path = folder.path().join(DEVICES);
+        let state = State {
+            quality,
+            ..Default::default()
+        };
+        Chosen::write(Some(&path), &state);
+        let read = Chosen::read(&path).quality;
+        assert_eq!(read.max_kbps, Some(20_000), "not lost while locked");
+        assert_eq!(read.limit(false), Some(9_000));
+        assert_eq!(read.limit(true), Some(20_000));
+    }
+
     /// Out of a call, a new quality is only remembered, for the next stream.
-    #[cfg(not(feature = "matrix"))]
     #[test]
     fn a_quality_chosen_out_of_a_call_is_only_remembered() {
         let folder = tempfile::tempdir().unwrap();
         let path = folder.path().join(DEVICES);
         let calls = Calls {
+            #[cfg(feature = "discord")]
             discord: watch::channel(None).1,
         };
         let controller = Controller::start_remembering(calls, Some(path.clone())).unwrap();

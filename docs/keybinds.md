@@ -2,8 +2,7 @@
 
 Keys held together that do something in any app, as Discord's keybinds:
 push to talk, push to mute, toggling mute, deafen, Go Live and the input
-mode, and leaving the call. They
-work in Discord and Matrix calls alike.
+mode, and leaving the call.
 
 ## In settings
 
@@ -88,8 +87,7 @@ need none: Disconnect leaves the call, Toggle Go Live stops a stream, and
 Toggle Mute and Toggle Deafen change the call's own state. Starting Go Live
 needs a source chosen, so with no window it starts only where the desktop
 has its own dialog (the Wayland portal), and elsewhere opens the window on
-the list of sources. Matrix calls answer Go Live with the usual "Screen
-sharing works in Discord calls for now.".
+the list of sources.
 
 ## Hearing keys in other apps
 

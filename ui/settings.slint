@@ -1649,9 +1649,6 @@ export component MessageSettings inherits VerticalLayout {
     in-out property <int> animate;
     in-out property <bool> reply-ping;
     in-out property <bool> strip-tracking;
-    /// The networks in use, which the descriptions name.
-    in property <bool> matrix;
-    in property <bool> discord;
     callback preferences-changed;
     spacing: 16px;
     if !ClientStyle.enabled: SettingsTitle { text: @tr("Messages"); }
@@ -1762,9 +1759,7 @@ export component MessageSettings inherits VerticalLayout {
     }
     SettingsSwitch {
         text: @tr("Let others see when you're typing");
-        description: root.matrix && root.discord ? @tr("Discord and Matrix show \"typing...\" while you write. Others still show here when they type.")
-            : root.matrix ? @tr("Matrix shows \"typing...\" while you write. Others still show here when they type.")
-            : @tr("Discord shows \"typing...\" while you write. Others still show here when they type.");
+        description: @tr("Discord shows \"typing...\" while you write. Others still show here when they type.");
         checked <=> root.share-typing;
         toggled => { root.preferences-changed(); }
     }
@@ -1787,17 +1782,12 @@ export component NotificationSettings inherits VerticalLayout {
     in-out property <bool> notifications;
     in-out property <bool> notification-text;
     in-out property <bool> flash-taskbar;
-    /// The networks in use, whose rules decide what notifies.
-    in property <bool> matrix;
-    in property <bool> discord;
     callback preferences-changed;
     spacing: 16px;
     if !ClientStyle.enabled: SettingsTitle { text: @tr("Notifications"); }
     SettingsSwitch {
         text: @tr("Show desktop notifications");
-        description: root.matrix && root.discord ? @tr("For new messages while Yapfast isn't in front. Each Discord server's notification settings and your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation.")
-            : root.matrix ? @tr("For new messages while Yapfast isn't in front. Your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation.")
-            : @tr("For new messages while Yapfast isn't in front. Each Discord server's notification settings decide which: usually DMs and mentions. Clicking one opens the conversation.");
+        description: @tr("For new messages while Yapfast isn't in front. Each Discord server's notification settings decide which: usually DMs and mentions. Clicking one opens the conversation.");
         checked <=> root.notifications;
         toggled => { root.preferences-changed(); }
     }
@@ -2193,14 +2183,12 @@ export struct BlockedRow { id: string, name: string, username: string, avatar-ur
 
 // Settings: Discord account and channel behavior.
 export component DiscordSettings inherits VerticalLayout {
-    in property <bool> matrix-build;
     in property <bool> show-hidden-channels;
     in property <bool> sync-discord-reads;
     in property <bool> show-idle;
     in property <bool> hide-blocked;
     /// Those the account blocked, by name.
     in property <[BlockedRow]> blocked;
-    callback unlink-discord;
     /// Unblock someone, by user id.
     callback unblock(string);
     /// How many of them show; Discord's list shows five more at a time.
@@ -2211,14 +2199,6 @@ export component DiscordSettings inherits VerticalLayout {
     callback show-idle-toggled(bool);
     spacing: 16px;
     if !ClientStyle.enabled: SettingsTitle { text: "Discord"; }
-    if root.matrix-build: HorizontalLayout {
-        spacing: 12px;
-        Label { text: @tr("Unlinking signs Yapfast out of Discord on this computer."); vertical-alignment: center; horizontal-stretch: 1; }
-        ActionButton {
-            text: @tr("Unlink Discord"); icon: @image-url("icons/log-out.svg"); danger: true;
-            clicked => { root.unlink-discord(); }
-        }
-    }
     SettingsSwitch {
         text: @tr("Show channels you can't access");
         description: @tr("They appear locked. Server admins hid them on purpose.");

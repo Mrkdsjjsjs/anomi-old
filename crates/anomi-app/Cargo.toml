@@ -2,7 +2,7 @@
 name = "anomi-app"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 description = "Anomi's iced interface on the real backend: the program, its state and update, the projection of the core's state and the binary"
@@ -16,9 +16,8 @@ path = "src/main.rs"
 
 [features]
 default = ["discord"]
-# As the Slint app's: Discord by default, Matrix beside it or instead.
+# As the Slint app's: Discord by default; without it, the local preview only.
 discord = ["yapfast-core/discord"]
-matrix = ["yapfast-core/matrix"]
 
 [dependencies]
 anyhow.workspace = true

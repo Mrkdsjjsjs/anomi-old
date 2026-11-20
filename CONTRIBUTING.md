@@ -31,8 +31,7 @@ scripts/test-fake-discord
 `scripts/check` runs formatting, doc links, Clippy, the tests and a smoke run of
 the default build. It enters the dev shell when Nix is installed, and uses your
 own tools otherwise. Each compile of the UI crate takes 6–8 GiB of memory, which
-is why its steps run one after another. Add `--matrix` when you change code that
-Matrix shares.
+is why its steps run one after another.
 
 `scripts/test-fake-discord` runs the Discord service tests against
 `testing/fake_discord.ts`, and needs Bun, Python and curl. Run it when you change
@@ -44,8 +43,8 @@ and say what you skipped in the pull request, so someone else can run it:
 
 ```sh
 cargo fmt --all -- --check
-cargo clippy --locked --profile fast --all-targets --workspace --exclude feature-union -- -D warnings
-cargo test --locked --profile fast --workspace --exclude feature-union
+cargo clippy --locked --profile fast --all-targets --workspace -- -D warnings
+cargo test --locked --profile fast --workspace
 ```
 
 For a Discord feature, follow

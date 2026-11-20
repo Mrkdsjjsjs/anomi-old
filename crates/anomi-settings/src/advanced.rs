@@ -7,8 +7,10 @@
 //! which cores it got, the physical cores to tick by chiplet while they are
 //! chosen by hand; what draws the interface (`drawing`), which switches
 //! at once and so has no restart line (the Slint app's "Render with the
-//! GPU" changes nothing here); and where streams encode, with what that
-//! choice does now.
+//! GPU" changes nothing here); where streams encode, with what that
+//! choice does now; and "Unlocked bitrate", which lets a stream's limit be
+//! typed past Discord's documented 9 Mbit/s, up to 50, saying what that
+//! risks.
 
 mod drawing;
 
@@ -104,6 +106,14 @@ pub fn view(page: &Advanced, motion: Motion) -> impl View<Intent> + '_ {
     parts.push(drawing::view(page, motion));
     parts.push(encoders(page, motion));
     parts.push(
+        switch(tr!("Unlocked bitrate"), page.bitrate_unlocked, motion)
+            .description(tr!(
+                "Lets a stream's bitrate limit be set by hand above 9 Mbit/s, up to 50. Discord documents 9 Mbit/s as the most; what its servers do with more isn't known: the stream may be cut off, lose packets or be dropped. A higher bitrate also needs an upload that fast, and loads the encoder and the people watching."
+            ))
+            .on_toggle(Intent::BitrateUnlocked)
+            .view(),
+    );
+    parts.push(
         text(tr!(
             "Icons from Solar by 480 Design (CC BY 4.0), many of them adapted, and from Lucide (ISC)."
         ))
@@ -188,10 +198,11 @@ fn encoders(page: &Advanced, motion: Motion) -> Element<'_, Intent> {
 /// showed it, with Optimization under it, and without the system's extras;
 /// the cores chosen by hand, also in the small window; the interface drawn
 /// on the integrated graphics, and on the processor after the card chosen
-/// failed (without the system's extras, so the rows show in the window).
+/// failed (without the system's extras, so the rows show in the window);
+/// and "Unlocked bitrate" on.
 #[cfg(feature = "shots")]
 pub fn shots() -> Vec<crate::shots::Shot> {
-    use anomi_vm::fixtures::settings::advanced::{bare, cores, fell_back, gpu, page};
+    use anomi_vm::fixtures::settings::advanced::{bare, cores, fell_back, gpu, page, unlocked};
 
     use crate::shots::{GOLDEN, SMALL, Shot};
 
@@ -202,6 +213,7 @@ pub fn shots() -> Vec<crate::shots::Shot> {
         ("advanced_cores_small", cores, SMALL),
         ("advanced_gpu", gpu, GOLDEN),
         ("advanced_fell_back", fell_back, GOLDEN),
+        ("advanced_unlocked", unlocked, GOLDEN),
     ]
     .into_iter()
     .map(|(name, vm, size)| Shot {

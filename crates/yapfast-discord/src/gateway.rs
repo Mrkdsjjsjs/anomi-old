@@ -20,22 +20,21 @@ use anyhow::{Context, Result, anyhow, bail};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use tokio::{
-    net::TcpStream,
     sync::mpsc,
     task::JoinHandle,
     time::{Instant, timeout},
 };
-use tokio_tungstenite::{
-    MaybeTlsStream, WebSocketStream,
-    tungstenite::{
-        Message,
-        client::IntoClientRequest,
-        http::{HeaderValue, header},
-        protocol::{CloseFrame, frame::coding::CloseCode},
-    },
+use tokio_tungstenite::tungstenite::{
+    Message,
+    protocol::{CloseFrame, frame::coding::CloseCode},
 };
 
-use crate::{client, event::Event, member_list, websocket};
+use crate::{
+    client,
+    event::Event,
+    member_list,
+    websocket::{self, Socket},
+};
 
 const URL: &str = "wss://gateway.discord.gg";
 /// What the web client asks of the gateway: JSON, compressed as one zlib
@@ -261,21 +260,9 @@ impl Drop for Gateway {
     }
 }
 
-type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
-
 /// Opens a gateway connection to `url`, as the web client does.
 async fn open(url: &str) -> Result<Socket> {
-    let mut request = url.into_client_request()?;
-    let headers = request.headers_mut();
-    headers.insert(
-        header::USER_AGENT,
-        HeaderValue::from_static(client::user_agent()),
-    );
-    headers.insert(
-        header::ORIGIN,
-        HeaderValue::from_static("https://discord.com"),
-    );
-    let (socket, _) = timeout(IO_TIMEOUT, websocket::connect(request))
+    let socket = timeout(IO_TIMEOUT, websocket::connect(url))
         .await
         .context("Discord's gateway didn't answer")?
         .context("could not reach Discord's gateway")?;
@@ -1010,7 +997,8 @@ fn secure(url: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::net::TcpListener;
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio_tungstenite::WebSocketStream;
 
     /// Discord's gateway, played in the test.
     struct Discord {

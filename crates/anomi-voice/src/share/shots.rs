@@ -1,7 +1,9 @@
 //! The dialog's and the stream's menus' shots: the Lounge's window with
 //! the Go Live dialog in its middle (Discord's `discord-golive-*.png`), its
 //! gear's menu open over it, the stream's menu over the controls' share
-//! button, and one's own stream's tile's menu (`discord-own-stream-menu.png`).
+//! button, and one's own stream's tile's menu (`discord-own-stream-menu.png`);
+//! with the bitrate's unlock, the steps past 9 Mbit/s and the limit typed
+//! by hand.
 
 use iced::Point;
 
@@ -72,10 +74,20 @@ pub fn shots() -> Vec<Shot> {
         shot("golive_gear_advanced", || {
             with_gear(fixtures::tuned(), Some(ADVANCED))
         }),
-        shot("share_menu_live", || window(fixtures::live())),
+        // With Settings' "Unlocked bitrate": the steps to 50 Mbit/s and
+        // "Custom value…", the limit typed by hand in the dialog's place,
+        // refused, and the stream's menu saying a limit typed.
+        shot("golive_gear_unlocked", || {
+            with_gear(fixtures::unlocked(), Some(ADVANCED))
+        }),
+        shot("golive_bitrate_entry", || window(fixtures::typing())),
         shot("share_menu_live_quality", || {
             window(fixtures::live_quality())
         }),
+        shot("share_menu_live_unlocked", || {
+            window(fixtures::live_unlocked())
+        }),
+        shot("share_menu_live", || window(fixtures::live())),
         shot("own_stream_menu", own_stream),
     ]
 }

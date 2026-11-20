@@ -130,7 +130,7 @@ impl Application {
     /// as Discord's client does: once they're in view with the window in
     /// front, and the "New" divider is placed, so the view isn't about to
     /// jump to it, and Mark Unread didn't mark it unread since it opened. A
-    /// forum reads on showing it. Matrix rooms are read in the backend.
+    /// forum reads on showing it.
     pub(super) fn mark_discord_read(&self) -> Vec<Effect> {
         match self.state.selected_room() {
             Some(room)
@@ -230,7 +230,7 @@ impl Application {
             Progress::Linked => {
                 self.state.discord_link = None;
                 self.state.discord_linked = true;
-                // A running Yapfast connects the account; one without Matrix
+                // A running Yapfast connects the account; one not signed in
                 // signs in with it.
                 return if self.state.account.is_some() {
                     vec![Effect::Backend(Command::Discord(DiscordCommand::Start))]
@@ -444,28 +444,23 @@ impl Application {
         &mut self,
         snapshot: Arc<yapfast_discord::service::Snapshot>,
     ) -> Vec<Effect> {
-        self.state.discord_online = snapshot.status == yapfast_discord::service::Status::Online;
+        use yapfast_discord::service::Status;
+        self.state.discord_online = snapshot.status == Status::Online;
+        // The account is Discord's.
+        self.state.online = self.state.discord_online;
         if let Some(account) = &snapshot.account {
             self.state.account_username =
                 Some(account.username.clone()).filter(|name| !name.is_empty());
+            self.state.account_name = Some(account.name.clone());
+            self.state.account_avatar = Some(account.avatar.clone());
+            self.state.account_decoration = account.decoration.clone();
+            self.state.account_nameplate = account.nameplate.clone().map(Into::into);
         }
-        // Without Matrix, the account is Discord's.
-        #[cfg(not(feature = "matrix"))]
-        {
-            use yapfast_discord::service::Status;
-            self.state.online = self.state.discord_online;
-            if let Some(account) = &snapshot.account {
-                self.state.account_name = Some(account.name.clone());
-                self.state.account_avatar = Some(account.avatar.clone());
-                self.state.account_decoration = account.decoration.clone();
-                self.state.account_nameplate = account.nameplate.clone().map(Into::into);
-            }
-            self.state.account_status = Some(match &snapshot.status {
-                Status::Online => yapfast_lang::tr!("Online").into(),
-                Status::Connecting => yapfast_lang::tr!("Connecting to Discord...").into(),
-                Status::Offline(reason) => reason.clone(),
-            });
-        }
+        self.state.account_status = Some(match &snapshot.status {
+            Status::Online => yapfast_lang::tr!("Online").into(),
+            Status::Connecting => yapfast_lang::tr!("Connecting to Discord...").into(),
+            Status::Offline(reason) => reason.clone(),
+        });
         self.state.discord_linked = true;
         self.state.discord_user = snapshot.user_id.clone();
         self.state.discord_presence =

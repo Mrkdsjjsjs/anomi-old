@@ -146,6 +146,7 @@ impl Sending {
             self.octets = self.octets.wrapping_add((packet.len() - clear) as u32);
             connection.transport.seal(&mut packet, clear)?;
             connection.udp.send(&packet).await?;
+            self.packetizer.recycle(packet);
         }
         if self.reported.elapsed() >= SENDER_REPORTS {
             self.reported = Instant::now();
@@ -182,6 +183,7 @@ impl Sending {
             let clear = rtp::rtp_clear_len(&again).unwrap_or(again.len());
             connection.transport.seal(&mut again, clear)?;
             connection.udp.send(&again).await?;
+            self.packetizer.recycle(again);
         }
         Ok(())
     }

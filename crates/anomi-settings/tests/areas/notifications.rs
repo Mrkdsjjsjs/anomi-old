@@ -48,13 +48,9 @@ fn text_waits_for_notifications_to_be_on() {
 }
 
 #[test]
-fn the_description_names_the_networks_in_use() {
-    let matrix = "For new messages while Yapfast isn't in front. Your Matrix notification \
-                  rules decide which: usually DMs and mentions. Clicking one opens the \
-                  conversation.";
-    let mut page = sample::notifications();
-    assert!(simulate(&page).find(matrix).is_err());
-    page.matrix = true;
-    page.discord = false;
-    assert!(simulate(&page).find(matrix).is_ok());
+fn the_description_names_discord_s_settings() {
+    let discord = "For new messages while Yapfast isn't in front. Each Discord server's \
+                   notification settings decide which: usually DMs and mentions. Clicking \
+                   one opens the conversation.";
+    assert!(simulate(&sample::notifications()).find(discord).is_ok());
 }

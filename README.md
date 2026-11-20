@@ -16,6 +16,10 @@ Anomi работает как обычная программа, а не как 
 форумы, друзья, звонки, демонстрация экрана, камера, GIF и стикеры работают
 как в Discord.
 
+Anomi работает только с Discord. Оригинал начинался как клиент Matrix и
+умеет его до сих пор; из форка Matrix убран целиком: вход, комнаты, звонки
+MatrixRTC и их библиотеки.
+
 ## Два интерфейса
 
 В этой ветке у Anomi два клиента на одном ядре и одних настройках:
@@ -110,7 +114,7 @@ nix develop path:./nix --command cargo run --locked --release
 
 ### Без Nix
 
-Нужны [rustup](https://rustup.rs), который сам поставит Rust 1.97.1 из
+Нужны [rustup](https://rustup.rs), который сам поставит Rust 1.98.1 из
 `rust-toolchain.toml`, и пакеты из `makedepends` в
 [packaging/arch/PKGBUILD](packaging/arch/PKGBUILD). На Arch это:
 
@@ -118,7 +122,8 @@ nix develop path:./nix --command cargo run --locked --release
 sudo pacman -S --needed rustup clang cmake curl git llvm nasm pkgconf protobuf python
 ```
 
-Без `nasm` сборка не пройдёт. Дальше обычный cargo; C и C++ собирает
+Без `nasm` сборка не пройдёт, а без `cmake` и `git` не соберётся BoringSSL,
+через который идут все соединения. Дальше обычный cargo; C и C++ собирает
 clang, как в PKGBUILD:
 
 ```sh
@@ -195,8 +200,8 @@ Studio и запускать PowerShell от администратора не �
   клиентами.
 - **Обновлений нет.** Anomi сам не обновляется: чтобы получить новое, его
   пересобирают из исходников.
-- **Windows и Matrix.** Для iced на Windows x64 проверены сборка и запуск
-  командной строки. Сборки форка с Matrix пока не проверены.
+- **Windows.** Для iced на Windows x64 проверены сборка и запуск командной
+  строки.
 - **Новый интерфейс проверялся в основном на тестовом сервере Discord.**
   Каждый экран сверен с прежним интерфейсом на одних и тех же данных, но на
   настоящем Discord и настоящем рабочем столе (буфер обмена, перетаскивание
@@ -205,9 +210,8 @@ Studio и запускать PowerShell от администратора не �
 ## Лицензия и благодарности
 
 Anomi, как и Yapfast, распространяется по
-[GNU General Public License](LICENSE) версии 3 или новее. Сборки с Matrix
-включают библиотеки MatrixRTC под AGPL. Кто написал оригинал и чьи запросы
-на слияние вошли в форк: [CREDITS.md](CREDITS.md).
+[GNU General Public License](LICENSE) версии 3 или новее. Кто написал
+оригинал и чьи запросы на слияние вошли в форк: [CREDITS.md](CREDITS.md).
 
 Благодарности из README оригинала:
 
@@ -224,8 +228,7 @@ Yapfast говорит с Discord так же, как его собственн�
 как перенесено.
 
 Прежний интерфейс стоит на [Slint](https://slint.dev), [Skia](https://skia.org),
-[LiveKit](https://livekit.io) и WebRTC,
-[matrix-rust-sdk](https://github.com/matrix-org/matrix-rust-sdk) и
+[LiveKit](https://livekit.io) и WebRTC и
 [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet). Правки Slint
 лежат в [`vendor/`](vendor), вместе с остальным кодом.
 

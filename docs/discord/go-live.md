@@ -145,8 +145,18 @@ at once can overflow buffers on the way, and fills the sender's uplink. A
 frame's packets wait in a queue with when each is due, and go out from a
 branch of their own, so the stream's sound, NACKs and receiver reports are
 handled while a frame goes out, and a report is timed when it comes; the
-next frame is taken once the queue is empty.
-Yapfast keeps the last 2048 video packets, and when a viewer reports
+next frame is taken once the queue is empty. The queue has no fixed
+length: it holds a frame, a keyframe's whole half second's buffer at the
+unlock's 50 Mbit/s too, about 2600 packets, which goes out within two
+frames at 750 Mbit/s. Each packet is made in one already sent, which the
+packetizer takes back once it's out (`Packetizer::recycle`, up to 1024
+kept), with room for its header, payload and the transport's tag and
+counter, so sealing it doesn't grow it: once a stream runs, sending a
+packet allocates nothing, at the five thousand a second of 50 Mbit/s too.
+Yapfast keeps about a second of video packets at the stream's cap, at
+least the last 2048 (two seconds at 9 Mbit/s) and up to 8192 at 50
+(`rtp::History::fit`, which grows the ring when the cap rises and keeps
+what it held), each slot reusing its buffer; and when a viewer reports
 some lost with a generic NACK (RTCP 205), resends up to 128 of them as
 Discord's client does: on the RTX SSRC with RTX's payload type and numbering,
 the original sequence number before the payload (RFC 4588), and the repaired
@@ -177,7 +187,8 @@ source's size at 15 frames; Custom, what the person set, which choosing a
 preset remembers and
 Custom brings back), "Screen Resolution" and "Frame Rate" with their
 choices, "Mute Stream Audio", and "Advanced", with "Hide Stream Preview"
-and what this client has beyond Discord: the bitrate limit, "Higher
+and what this client has beyond Discord: the bitrate limit (with the
+unlock below, past 9 Mbit/s and typed by hand), "Higher
 quality" and where streams encode, the choice of Settings' Advanced
 (`layout.json`'s `stream_encoder`). Before going live a mode, resolution,
 frame rate, limit or quality chosen only changes the dialog, which carries
@@ -232,19 +243,56 @@ name only boosts' 720p60 and 1080p60, [`VIDEO_QUALITY_720_60FPS` and
 so Yapfast offers 1440p to every account, as it does 1080p and the source's
 size, and the limit's steps below are 1080p's. The
 menu's "Bitrate limit" (Auto, or 2, 3.5, 5, 6, 8 or 9 Mbit/s) lowers that
-cap, never raises it: `stream_connection::cap` takes the lower of the two,
-and at least 500 kbit/s. Auto is Discord's cap alone. The limit is kept
+cap, never raises it without the unlock below: `stream_connection::cap`
+takes the lower of the two, and at least 500 kbit/s. Auto is Discord's cap alone. The limit is kept
 with the stream's quality in `devices.json` (`StreamQuality::max_kbps`),
 reaches the worker with `Job::Share` and `Control::Quality`, and bounds
 everything Discord's cap bounds: the target a stream starts at, the
 congestion controller below, the encoder's bitrate and op 12's
 `max_bitrate`, which announces the cap in force. It's a ceiling, not a
 target: the congestion controller still lowers the bitrate when the uplink
-queues or loses packets. Past 9 Mbit/s waits for a test against Discord's
-own servers: the fake can't show whether its stream server clamps the
-stream, drops packets or closes the connection. Discord's client allows
+queues or loses packets. Discord's client allows
 accounts without Nitro 720p30, but trials 1080p30 at 3.5 or 5 Mbit/s for
-them. The worker converts captured
+them.
+
+Past 9 Mbit/s is Anomi's "Unlocked bitrate" in Settings, Advanced, under
+Optimization, off unless turned on (`layout.json`'s
+`stream_bitrate_unlocked`, written once on). Its note says what it risks:
+Discord documents 9 Mbit/s as the most, and what its servers do with more
+isn't known, as the fake can't show whether a stream server clamps the
+stream, drops packets or closes the connection; and a higher bitrate needs
+an upload that fast, and loads the encoder and the viewers. With it, the
+limit's steps go on past 9 (12, 15, 20, 30 and 50 Mbit/s), and "Custom
+value…" after them, chosen while the limit is none of the steps and saying
+it under its name, opens a small dialog in the share layer, in the middle
+of the window, in place of the Go Live dialog or the stream's menu
+(`anomi_voice::share::entry`): "Bitrate limit", a field with "Mbit/s" after
+it, "Cancel" and "Apply". It takes 1 to 50 Mbit/s, with a comma or a point
+before up to three decimals (`entry::parse`); an empty field, one that
+isn't a number and one out of that range each say why under the field,
+which keeps what was typed. Enter applies it as a step chosen is, at once
+while live; Escape (once the field lets it go, as in every dialog with a
+field), a press beside it and "Cancel" go back to what it came from, the
+limit as it was. From the menu of one's own stream's tile, which is the
+window's, the layer opens for it alone and closes with it. With the
+unlock the limit chosen also shows in the dialog's summary line ("1440p ·
+60fps · 20 Mbit/s · System sound"), the stream menu's "Stream Quality" and
+the dock's "Your screen" ("1440p · 60 fps · 20.5 Mbit/s"); without it they
+read as before. The limit is the cap at every size, 720p's too, up to
+50 Mbit/s (`stream_connection::cap`'s `unlocked`); Auto stays Discord's
+cap; op 12 announces the limit chosen as its `max_bitrate`. Off, everything
+is as before: a limit kept past 9 Mbit/s isn't lost from `devices.json`,
+but counts as 9, its step chosen in the menus (`StreamQuality::limit`),
+and the next time the unlock is on it's back. The unlock reaches the
+worker as where it encodes does: `Job::Share`'s `bitrate_unlocked` for a
+stream starting (`stream_worker::unlock_bitrate` keeps it), and
+`Control::BitrateUnlocked` for one going, which takes it with its next
+frame: the target drops under 9 Mbit/s at once as the unlock goes, and
+climbs as the uplink allows as it comes back. The sending thread reads the
+limit and its unlock as one word, so it never announces one with the
+other's mark.
+
+The worker converts captured
 frames to I420 with libyuv, scales them with libyuv's filtering scaler, and
 encodes those; the preview is the same picture scaled down to 720p. While
 the window isn't in front the UI tells the worker (`Frames::pause`) and the
@@ -274,7 +322,9 @@ its height, or the bitrate limit below it, which a limit set while live
 also takes the target down to at once. Each report
 whose round trip is within 25 ms of the lowest of the last minute, with at
 most 2% of packets lost, raises the target by 8%, up to the cap: about 17 s
-from the start to 1080p's 9 Mbit/s, with a report a second. It doesn't rise
+from the start to 1080p's 9 Mbit/s, with a report a second, and about 39 s
+to the unlock's 50, never in a jump, as each rise is a share of the target
+and a cap raised while live only lets it rise. It doesn't rise
 past 1.5 times what went out over the last half second, video and resends,
 counted in slices of 50 ms, nor before the stream has sent for that long: a
 calm picture sends less than the target, and a target raised over it would
@@ -462,7 +512,9 @@ out: DAVE encrypts only OBUs' payloads, so their headers show. As
 Discord's client does, it asks for a missing packet again at once with a
 generic NACK, again every 80 ms up to three times, and takes the resend from
 the streamer's RTX SSRC (RFC 4588); padding there, which probes the path, is
-dropped. Packets after a gap wait for it at most 300 ms. A frame still missing
+dropped. Packets after a gap wait for it at most 300 ms, and at most 4096
+of them, 300 ms of a 50 Mbit/s stream with room to spare; one more than
+1000 past the highest means the sender started again. A frame still missing
 a packet is dropped, and so is everything after it until the next keyframe. So
 are frames while none has come yet, and after one the decoder was too far
 behind to take. The connection asks for a keyframe with a picture loss
@@ -675,6 +727,26 @@ frame rate: x264, NVENC and VA-API choose it themselves (H264's 5.1 for
 1080p60 and not for 1440p's 14400 macroblocks, is told the lowest that takes
 the stream (`h264_level` in `native/hwenc.c`: 5.1 for 1440p60, 5.2 for
 4K60); its H265 level is the card's own.
+
+Each encoder chooses that level as it opens, by the bitrate it opens at
+too: x264 by its VBV's rate and buffer, FFmpeg's VA-API encoders by the
+bitrate, NVENC's own choice by it as well, and keeps it while the bitrate
+changes. Up to 9 Mbit/s every level a stream's size takes holds the rate,
+so an encoder opens at the stream's target as it always has. With the
+unlock past 9 Mbit/s, it opens at the stream's cap instead, so its level
+holds it, and aims for the target from its first frame
+(`Encoder::holding`; `Sink::reach` in the worker): x264 at 50 Mbit/s takes
+Main's 4.1 up to 1080p30, 4.2 at 1080p60 and 5.1 at 1440p60; H265 needs
+Main tier's 5.2 and AV1 its 5.2 for 50 Mbit/s, which FFmpeg's VA-API
+encoders choose by the bitrate, where NVENC's and AMF's choice is the
+driver's own; AMF's H264, told from 4.2 up, holds 50.
+An encoder whose level was chosen for less than a cap raised while live,
+past 9 Mbit/s, opens again with a keyframe, as for a new size; a lower cap
+opens nothing. x264 taking over from a failing GPU encoder opens at the
+same rate. The rate control's numbers fit 50 Mbit/s: x264's in kbit/s,
+FFmpeg's peak and its half second's buffer (25 Mbit) in bit/s as 64-bit
+and 32-bit numbers, and the frame buffer, twice the frame's pixels, holds
+a keyframe at any bitrate.
 
 Where the card's encoder encodes AV1 or H265, the stream offers them too,
 first, AV1 before H265, as Discord's client orders them: each looks better

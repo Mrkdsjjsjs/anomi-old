@@ -64,8 +64,8 @@ names. See [the index](../tasks.md).
 ### N09 · Sign-in (Sonnet · M)
 - **Owns:** `anomi-screens/src/sign_in/`, `anomi-vm/src/sign_in.rs`.
 - **After:** F12.
-- **Ports:** `SignInScreen`, `VerifyBanner` (`ui/sign-in.slint:8`, `:119`); `DiscordLinkPanel` (`ui/discord.slint:29`, the QR code and token paste); `src/ui/callbacks.rs:2685`, `:2704`, `:1308`; `src/ui/pictures.rs:13` (`qr_code`).
-- **Done when:** a data folder without a session shows sign-in; QR linking and token linking go through; the verify banner shows for an unverified device. I05.
+- **Ports:** `SignInScreen` (`ui/sign-in.slint:8`); `DiscordLinkPanel` (`ui/discord.slint:29`, the QR code and token paste); `src/ui/callbacks.rs:1308`; `src/ui/pictures.rs:13` (`qr_code`).
+- **Done when:** a data folder without a session shows sign-in; QR linking and token linking go through. I05.
 
 ### N10 · Quick switcher (Sonnet · S)
 - **Owns:** `anomi-screens/src/switcher.rs`, `anomi-vm/src/switcher.rs`.

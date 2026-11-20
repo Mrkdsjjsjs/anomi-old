@@ -2,8 +2,7 @@
 """Package the Windows executable, build inputs and dependency notices, as a
 portable ZIP and an Inno Setup installer.
 
-The Discord flavour is the release; the full one, with Matrix, goes out as a
-separate preview. Both install as the same app, so one replaces the other."""
+The Discord flavour is the release, and the only one."""
 import argparse
 import json
 import os
@@ -26,7 +25,6 @@ INNO_SETUP_SHA256 = "0362a383ed217d4c4239b5933866dd96d3eb2102737da92f80f6057a4b4
 # installer shows, for each flavour scripts/build-windows builds.
 FLAVOURS = {
     "discord": {"features": ["--no-default-features", "--features", "desktop,discord"], "suffix": "", "edition": None},
-    "full": {"features": ["--features", "matrix"], "suffix": "-full-preview", "edition": "full preview"},
 }
 
 
@@ -117,10 +115,6 @@ def main():
     contents = executable.read_bytes()
     if names_home(contents):
         raise SystemExit(f"{executable} names {Path.home()}; build it with scripts/build-windows")
-    # Both flavours build to the same path; the Matrix SDK's source paths
-    # tell which one is there.
-    if (b"/matrix-rust-sdk-" in contents) != (args.flavour == "full"):
-        raise SystemExit(f"{executable} isn't the {args.flavour} flavour; run scripts/build-windows {args.flavour}")
     del contents
     # Only the packages this flavour's features build.
     metadata = json.loads(subprocess.check_output(
@@ -135,7 +129,7 @@ def main():
     source_path = output / f"{base}-source.zip"
     with tempfile.TemporaryDirectory(prefix="yapfast-windows-package-") as temporary:
         temporary = Path(temporary)
-        rtc = source_snapshot(metadata, base, temporary, source_path)
+        source_snapshot(base, temporary, source_path)
 
         package = temporary / f"{base}-windows-x64"
         package.mkdir()
@@ -145,32 +139,21 @@ def main():
         # rather than into every install; SOURCE.txt says where.
         source_url = f"https://github.com/yapfast/yapfast/releases/tag/v{version}{flavour['suffix']}"
         (package / "SOURCE.txt").write_text(
-            f"The source code of this build of Yapfast {version}"
-            + (", with the exact source of\nthe libraries it includes under the AGPL," if rtc else "")
-            + " is published with it:\n\n"
+            f"The source code of this build of Yapfast {version} is published with it:\n\n"
             f"  {source_url}\n  {source_path.name}, SHA-256 in BUILD.json\n\n"
             "and in the repository, https://github.com/yapfast/yapfast. The licenses folder\n"
             "holds every dependency's own license and notices.\n",
             encoding="utf-8", newline="\r\n",
         )
-        if args.flavour == "discord":
-            first_steps = (
-                "3. Link your Discord account: Yapfast shows a QR code, which Discord on\n"
-                "   your phone scans (Settings, Scan QR Code). Discord doesn't allow apps\n"
-                "   like Yapfast on personal accounts; linking puts your account at some\n"
-                "   risk of being suspended.\n"
-                "4. Open a channel, or a voice channel to talk.\n\n"
-                "No account or saved session is included.\n"
-            )
-            secrets = "password or Discord token"
-        else:
-            first_steps = (
-                "3. Sign in with your Matrix account; the homeserver is editable.\n"
-                "   Or link Discord, which shows a QR code for Discord on your phone.\n"
-                "4. Open a room, or a voice channel to talk.\n\n"
-                "Passwords, recovery keys and saved sessions are not included.\n"
-            )
-            secrets = "password or recovery key"
+        first_steps = (
+            "3. Link your Discord account: Yapfast shows a QR code, which Discord on\n"
+            "   your phone scans (Settings, Scan QR Code). Discord doesn't allow apps\n"
+            "   like Yapfast on personal accounts; linking puts your account at some\n"
+            "   risk of being suspended.\n"
+            "4. Open a channel, or a voice channel to talk.\n\n"
+            "No account or saved session is included.\n"
+        )
+        secrets = "password or Discord token"
         edition = f" ({flavour['edition']})" if flavour["edition"] else ""
         (package / "README.txt").write_text(
             f"Yapfast{edition} for 64-bit Windows 10/11\n\n"
@@ -233,8 +216,6 @@ def main():
             "webrtc_tag": "webrtc-51ef663",
             "webrtc_archive_sha256": "0a56a5c91b3b7b4222082b8a09388d16a802cde22d67295beb24c55700755b30",
         }
-        if rtc:
-            build["homeserver_default"] = "https://matrix.org"
         (package / "BUILD.json").write_text(json.dumps(build, indent=2) + "\n", encoding="utf-8")
         zip_directory(package, archive_path)
         installer_path = None if args.no_installer else compile_installer(package, version, args.flavour, output.resolve())

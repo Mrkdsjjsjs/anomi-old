@@ -74,25 +74,41 @@ fn schedule(
     })
 }
 
+/// The most bit/s Discord's documentation shows a stream sending: op 12's
+/// `max_bitrate` in the voice docs' example, 9 Mbit/s at 60 fps, which is
+/// also what Discord's client sends above 720p.
+pub const DOCUMENTED_MAX: u32 = 9_000_000;
+/// The most a bitrate limit may be set to with the unlock (Settings,
+/// Advanced, "Unlocked bitrate"): past what Discord documents, where its
+/// servers may cut the stream, lose its packets or drop it.
+pub const UNLOCKED_MAX: u32 = 50_000_000;
+
 /// The most bit/s a stream of `height` lines may take, as Discord's client
 /// decides it: 3.5 Mbit/s up to 720p, 9 Mbit/s above, 1440p and the
 /// source's size too, at any frame rate. The voice docs give 9 Mbit/s as
 /// op 12's `max_bitrate` at 60 fps and name no other cap.
 pub fn max_bitrate(height: u32) -> u32 {
-    if height > 720 { 9_000_000 } else { 3_500_000 }
+    if height > 720 {
+        DOCUMENTED_MAX
+    } else {
+        3_500_000
+    }
 }
 
 /// The most bit/s a stream of `height` lines is sent at, with the bitrate
 /// limit the person chose, `max_kbps`, none for Auto: Discord's cap for the
 /// height, or the limit when that's lower, never below
-/// [`congestion::FLOOR`]. A limit only lowers it: going past Discord's cap
-/// waits for a test against Discord's own servers. Op 12 announces it, and
-/// the congestion controller stays under it.
-pub fn cap(height: u32, max_kbps: Option<u32>) -> u32 {
+/// [`congestion::FLOOR`]. Without the unlock a limit only lowers it, and
+/// one kept above it counts as Discord's cap. With it, `unlocked`, the
+/// limit is the cap at every size, up to [`UNLOCKED_MAX`]; Auto stays
+/// Discord's. Op 12 announces it, and the congestion controller stays
+/// under it.
+pub fn cap(height: u32, max_kbps: Option<u32>, unlocked: bool) -> u32 {
     let discord = max_bitrate(height);
+    let most = if unlocked { UNLOCKED_MAX } else { discord };
     max_kbps.map_or(discord, |kbps| {
         kbps.saturating_mul(1000)
-            .clamp(congestion::FLOOR as u32, discord)
+            .clamp(congestion::FLOOR as u32, most)
     })
 }
 
@@ -158,8 +174,10 @@ struct Shared {
     fps: AtomicU32,
     /// Sending: the bit/s to encode at, as [`Controller`] decides.
     target: AtomicU64,
-    /// Sending: the bitrate limit the person chose, in kbit/s; 0 for none.
-    /// See [`cap`].
+    /// Sending: the bitrate limit the person chose, in kbit/s, 0 for none,
+    /// with [`UNLOCKED_BIT`] set while it may pass Discord's documented cap
+    /// ([`cap`]): one word, so the sending thread never reads a limit with
+    /// another's unlock.
     ceiling: AtomicU32,
     /// Sending: the codecs offered, most wanted first, and whether that
     /// changed since Discord was told. Receiving: the codecs decoded.
@@ -193,14 +211,25 @@ impl Shared {
         })
     }
 
-    /// The bitrate limit the person chose, in kbit/s.
-    fn ceiling(&self) -> Option<u32> {
-        match self.ceiling.load(Ordering::Relaxed) {
-            0 => None,
-            kbps => Some(kbps),
-        }
+    /// The bitrate limit the person chose, in kbit/s, and whether it may
+    /// pass Discord's documented cap.
+    fn ceiling(&self) -> (Option<u32>, bool) {
+        let packed = self.ceiling.load(Ordering::Relaxed);
+        let kbps = packed & !UNLOCKED_BIT;
+        ((kbps != 0).then_some(kbps), packed & UNLOCKED_BIT != 0)
+    }
+
+    /// The most bit/s a frame `height` lines tall is sent at, with the
+    /// limit chosen and its unlock ([`cap`]).
+    fn cap(&self, height: u32) -> u32 {
+        let (max_kbps, unlocked) = self.ceiling();
+        cap(height, max_kbps, unlocked)
     }
 }
+
+/// [`Shared::ceiling`]'s mark of a limit that may pass Discord's
+/// documented cap; the kbit/s below it.
+const UNLOCKED_BIT: u32 = 1 << 31;
 
 /// Runs a connection on a thread of its own until it ends, recording why.
 fn spawn(
@@ -303,18 +332,19 @@ impl StreamSender {
     }
 
     /// Sends at most `max_kbps` from now on, none for Auto, within Discord's
-    /// cap for the stream's height ([`cap`]): the target drops under it at
-    /// once, and the next frame announces it with op 12 and caps the
-    /// congestion controller at it. A limit raised again lets the target
-    /// rise as the uplink allows.
-    pub fn set_ceiling(&self, max_kbps: Option<u32>) {
-        self.shared
-            .ceiling
-            .store(max_kbps.unwrap_or(0), Ordering::Relaxed);
+    /// cap for the stream's height unless `unlocked` lets it past, up to
+    /// [`UNLOCKED_MAX`] ([`cap`]): the target drops under it at once, and
+    /// the next frame announces it with op 12 and caps the congestion
+    /// controller at it. A limit raised again, or unlocked, lets the target
+    /// rise as the uplink allows, never at once.
+    pub fn set_ceiling(&self, max_kbps: Option<u32>, unlocked: bool) {
+        let kbps = max_kbps.unwrap_or(0).min(!UNLOCKED_BIT);
+        let mark = if unlocked { UNLOCKED_BIT } else { 0 };
+        self.shared.ceiling.store(kbps | mark, Ordering::Relaxed);
         let height = lock(&self.shared.size).1;
         self.shared
             .target
-            .fetch_min(cap(height, max_kbps).into(), Ordering::Relaxed);
+            .fetch_min(self.shared.cap(height).into(), Ordering::Relaxed);
     }
 
     /// Whether the next frame should be a keyframe: at the start, after
@@ -571,8 +601,9 @@ async fn send(
     let mut connection = open(server, user, channel, Role::Send, shared).await?;
     let (ssrc, video, rtx) = (connection.ssrc, connection.video, connection.rtx);
     let mut size = *lock(&shared.size);
-    // Discord's cap for the size, or the person's limit below it.
-    let mut capped = cap(size.1, shared.ceiling());
+    // Discord's cap for the size, or the person's limit below it, or past
+    // it with the unlock.
+    let mut capped = shared.cap(size.1);
     let mut pacing = Controller::new(capped.into());
     shared.target.store(pacing.target(), Ordering::Relaxed);
     // When the last video sender reports went out, by the time in them.
@@ -602,7 +633,9 @@ async fn send(
     tracing::info!(codec = ?chosen, ?offered, "Discord chose the stream's codec");
     let mut withdrawn: Vec<Codec> = vec![];
     let mut packetizer = Packetizer::new(video, chosen);
+    // Room for about a second of packets at the cap, which grows with it.
     let mut history = rtp::History::default();
+    history.fit(capped.into());
     let interval = connection.interval;
     let mut heartbeat = tokio::time::interval_at(Instant::now() + interval, interval);
     let mut datagram = vec![0u8; 1500];
@@ -632,13 +665,14 @@ async fn send(
                 // A new size, frame rate or bitrate limit, announced before
                 // the first frame that has it.
                 let (wanted_size, wanted_fps) = (*lock(&shared.size), shared.fps.load(Ordering::Relaxed));
-                let wanted = (wanted_size, wanted_fps, cap(wanted_size.1, shared.ceiling()));
+                let wanted = (wanted_size, wanted_fps, shared.cap(wanted_size.1));
                 if wanted != (size, fps, capped) {
                     (size, fps, capped) = wanted;
                     send_json(&mut connection.ws, 12, attributes(ssrc, video, rtx, size, fps, capped)).await?;
                     if let Some(reason) = pacing.set_cap(capped.into()) {
                         retarget(shared, &pacing, reason, None);
                     }
+                    history.fit(capped.into());
                 }
                 let encrypting = connection.dave.encrypting();
                 if encrypted != Some(encrypting) {
@@ -684,6 +718,8 @@ async fn send(
                     connection.udp.send(&packet).await?;
                     shared.video_bytes.fetch_add(packet.len() as u64, Ordering::Relaxed);
                     pacing.sent(std::time::Instant::now(), packet.len());
+                    // The next frame's packets are built in it.
+                    packetizer.recycle(packet);
                 }
                 if pending.is_empty() && reported.elapsed() >= SENDER_REPORTS {
                     reported = Instant::now();
@@ -808,6 +844,7 @@ async fn send(
                     connection.udp.send(&again).await?;
                     shared.video_bytes.fetch_add(again.len() as u64, Ordering::Relaxed);
                     pacing.sent(std::time::Instant::now(), again.len());
+                    packetizer.recycle(again);
                     shared.resent.fetch_add(1, Ordering::Relaxed);
                     sent.resent += 1;
                 }
@@ -1316,17 +1353,68 @@ mod tests {
     /// down to the controller's floor, and op 12 announces what's left.
     #[test]
     fn caps_at_the_limit_within_discords_cap() {
-        assert_eq!(cap(1440, None), 9_000_000);
-        assert_eq!(cap(720, None), 3_500_000);
-        assert_eq!(cap(1440, Some(5_000)), 5_000_000);
-        assert_eq!(cap(720, Some(5_000)), 3_500_000, "never past Discord's cap");
-        assert_eq!(cap(1080, Some(20_000)), 9_000_000);
-        assert_eq!(cap(1080, Some(100)), congestion::FLOOR as u32);
-        assert_eq!(cap(1080, Some(u32::MAX)), 9_000_000);
-        let announced = attributes(1, 2, 3, (3440, 1440), 60, cap(1440, Some(6_000)));
+        assert_eq!(cap(1440, None, false), 9_000_000);
+        assert_eq!(cap(720, None, false), 3_500_000);
+        assert_eq!(cap(1440, Some(5_000), false), 5_000_000);
+        assert_eq!(
+            cap(720, Some(5_000), false),
+            3_500_000,
+            "never past Discord's cap"
+        );
+        assert_eq!(cap(1080, Some(20_000), false), 9_000_000);
+        assert_eq!(cap(1080, Some(100), false), congestion::FLOOR as u32);
+        assert_eq!(cap(1080, Some(u32::MAX), false), 9_000_000);
+        let announced = attributes(1, 2, 3, (3440, 1440), 60, cap(1440, Some(6_000), false));
         assert_eq!(announced["streams"][0]["max_bitrate"], 6_000_000);
         let camera = video_attributes(1, 2, 3, (1280, 720), 30);
         assert_eq!(camera["streams"][0]["max_bitrate"], 3_500_000);
+    }
+
+    /// The unlock lets a limit past Discord's documented 9 Mbit/s, up to
+    /// 50, at every size, and op 12 announces the limit chosen; Auto stays
+    /// Discord's cap. Without it, a limit kept past 9 Mbit/s is 9.
+    #[test]
+    fn the_unlock_lets_the_limit_past_discords_cap() {
+        assert_eq!(cap(1440, Some(20_000), true), 20_000_000);
+        assert_eq!(cap(1440, Some(20_000), false), DOCUMENTED_MAX);
+        assert_eq!(cap(720, Some(12_000), true), 12_000_000, "any size");
+        assert_eq!(cap(1080, Some(60_000), true), UNLOCKED_MAX);
+        assert_eq!(cap(1080, Some(u32::MAX), true), UNLOCKED_MAX);
+        assert_eq!(cap(1080, Some(1_000), true), 1_000_000, "still lowers");
+        assert_eq!(cap(1080, Some(100), true), congestion::FLOOR as u32);
+        assert_eq!(cap(1440, None, true), DOCUMENTED_MAX, "Auto is Discord's");
+        assert_eq!(cap(720, None, true), 3_500_000);
+        let announced = attributes(1, 2, 3, (2560, 1440), 60, cap(1440, Some(30_500), true));
+        assert_eq!(announced["streams"][0]["max_bitrate"], 30_500_000);
+    }
+
+    /// A limit and its unlock go to the sending thread in one word: the
+    /// unlock taken away while live brings the target under Discord's cap
+    /// at once, and the limit is kept for when it's unlocked again, which
+    /// raises nothing at once.
+    #[test]
+    fn the_unlock_changed_while_live_moves_the_ceiling() {
+        let (frames, _frames) = mpsc::channel(1);
+        let (sounds, _sounds) = mpsc::channel(1);
+        let sender = StreamSender {
+            frames,
+            sounds,
+            shared: Shared::new((2560, 1440)),
+        };
+        sender.set_ceiling(Some(20_000), true);
+        assert_eq!(sender.shared.ceiling(), (Some(20_000), true));
+        assert_eq!(sender.shared.cap(1440), 20_000_000);
+        assert_eq!(sender.target(), 2_500_000, "a ceiling, not a target");
+        sender.shared.target.store(18_000_000, Ordering::Relaxed);
+        sender.set_ceiling(Some(20_000), false);
+        assert_eq!(sender.shared.ceiling(), (Some(20_000), false));
+        assert_eq!(sender.target(), DOCUMENTED_MAX as u64);
+        sender.set_ceiling(Some(20_000), true);
+        assert_eq!(sender.target(), DOCUMENTED_MAX as u64, "no jump");
+        sender.set_ceiling(Some(u32::MAX), true);
+        assert_eq!(sender.shared.cap(1440), UNLOCKED_MAX);
+        sender.set_ceiling(None, true);
+        assert_eq!(sender.shared.ceiling(), (None, true));
     }
 
     /// 1440p is capped as 1080p is, at every frame rate, and op 12 names
@@ -1334,7 +1422,7 @@ mod tests {
     #[test]
     fn caps_1440p_as_1080p_at_every_frame_rate() {
         for fps in [15, 30, 60] {
-            let announced = attributes(1, 2, 3, (2560, 1440), fps, cap(1440, None));
+            let announced = attributes(1, 2, 3, (2560, 1440), fps, cap(1440, None, false));
             let stream = &announced["streams"][0];
             assert_eq!(stream["max_bitrate"], 9_000_000, "{fps} fps");
             assert_eq!(stream["max_framerate"], fps);
@@ -1344,8 +1432,12 @@ mod tests {
             );
         }
         // An ultrawide's 1440p, 2560 by 1070, is still above 720 lines.
-        assert_eq!(cap(1070, None), 9_000_000);
-        assert_eq!(cap(1440, Some(9_000)), 9_000_000, "the highest step");
+        assert_eq!(cap(1070, None, false), 9_000_000);
+        assert_eq!(
+            cap(1440, Some(9_000), false),
+            9_000_000,
+            "the highest step"
+        );
     }
 
     /// A limit set while live lowers the target the encoder follows at
@@ -1360,15 +1452,15 @@ mod tests {
             shared: Shared::new((1920, 1080)),
         };
         assert_eq!(sender.target(), 2_500_000);
-        sender.set_ceiling(Some(2_000));
+        sender.set_ceiling(Some(2_000), false);
         assert_eq!(
             (sender.target(), sender.shared.ceiling()),
-            (2_000_000, Some(2_000))
+            (2_000_000, (Some(2_000), false))
         );
-        sender.set_ceiling(None);
+        sender.set_ceiling(None, false);
         assert_eq!(
             (sender.target(), sender.shared.ceiling()),
-            (2_000_000, None)
+            (2_000_000, (None, false))
         );
     }
 
@@ -1380,6 +1472,15 @@ mod tests {
         // not 160 ms at 2.5 times the target.
         assert_eq!(pacing_rate(4_000_000, 200_000, 30), 24_000_000);
         assert_eq!(pacing_rate(4_000_000, 200_000, 60), 48_000_000);
+        // At the unlock's 50 Mbit/s: a frame at 125, and a keyframe of the
+        // encoder's whole half second's buffer, 3.1 MB, within two frames.
+        assert_eq!(pacing_rate(50_000_000, 104_000, 60), 125_000_000);
+        assert_eq!(pacing_rate(50_000_000, 3_125_000, 60), 750_000_000);
+        let due: Vec<_> = schedule(Instant::now(), vec![vec![0; 1200]; 2600], 750_000_000)
+            .map(|(due, _)| due)
+            .collect();
+        let took = *due.last().unwrap() - due[0];
+        assert!(took < Duration::from_millis(34), "{took:?}");
     }
 
     #[test]

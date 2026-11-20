@@ -13,8 +13,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use reqwest::{Method, StatusCode, header::HeaderMap};
 use serde_json::Value;
+use yapfast_http::wreq::{Method, StatusCode, header::HeaderMap};
 
 /// The longest Yapfast waits on a limit before giving up on the request.
 pub const MAX_WAIT: Duration = Duration::from_secs(60);
@@ -334,9 +334,10 @@ pub fn route(method: &Method, path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use reqwest::header::HeaderValue;
     use serde_json::json;
+    use yapfast_http::wreq::header::HeaderValue;
+
+    use super::*;
 
     fn headers(pairs: &[(&'static str, &str)]) -> HeaderMap {
         let mut map = HeaderMap::new();

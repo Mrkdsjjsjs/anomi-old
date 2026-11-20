@@ -542,9 +542,6 @@ msgstr[0] "Никнейм может содержать до {n} символа.
 msgstr[1] "Никнейм может содержать до {n} символов."
 msgstr[2] "Никнейм может содержать до {n} символов."
 
-msgid "A participant's audio key was refused. They may need to verify their device."
-msgstr "Ключ звука участника отклонён. Возможно, ему нужно подтвердить своё устройство."
-
 msgid "a permission"
 msgid_plural "permissions"
 msgstr[0] "права"
@@ -574,9 +571,6 @@ msgstr "баннер сервера"
 
 msgid "a server icon"
 msgstr "значок сервера"
-
-msgid "a session path is a symbolic link; choose a private directory"
-msgstr "путь сеанса — символическая ссылка; выберите закрытую папку"
 
 msgid "A sound that's gone"
 msgstr "Звук удалён"
@@ -1484,12 +1478,6 @@ msgstr "Прикрепить файлы"
 msgid "Audio devices are unavailable. Check your system's audio service and permissions."
 msgstr "Аудиоустройства недоступны. Проверьте звуковую службу системы и права доступа."
 
-msgid "Audio encryption failed. Your microphone is muted. Check device verification or rejoin."
-msgstr "Не удалось зашифровать звук. Ваш микрофон отключён. Проверьте подтверждение устройства или зайдите заново."
-
-msgid "Audio stopped, but departure could not be confirmed. Channel membership will expire."
-msgstr "Звук остановлен, но выход не удалось подтвердить. Участие в канале закончится само."
-
 msgid "Audit Log"
 msgstr "Журнал аудита"
 
@@ -1835,9 +1823,6 @@ msgstr "Время скрытия по умолчанию изменено на"
 msgid "Changed default thread slowmode to "
 msgstr "Медленный режим веток по умолчанию изменён на "
 
-msgid "Changed identity since you verified them. Nobody can receive your audio key until you verify them again in a Matrix client."
-msgstr "Личность изменилась после вашего подтверждения. Никто не получит ваш ключ звука, пока вы не подтвердите её снова в клиенте Matrix."
-
 msgid "Changed resource channels"
 msgstr "Каналы с ресурсами изменены"
 
@@ -1924,9 +1909,6 @@ msgstr "КАНАЛЫ"
 
 msgid "Channels you read in Yapfast show as read in the Discord apps too."
 msgstr "Каналы, прочитанные в Anomi, отображаются прочитанными и в приложениях Discord."
-
-msgid "Check again"
-msgstr "Проверить снова"
 
 msgid "Check for updates"
 msgstr "Проверять обновления"
@@ -2141,14 +2123,8 @@ msgstr "Подключён с другого клиента"
 msgid "Connecting to Discord..."
 msgstr "Подключение к Discord..."
 
-msgid "Connecting to Matrix..."
-msgstr "Подключение к Matrix..."
-
 msgid "Connecting to {}'s stream..."
 msgstr "Подключение к трансляции {}..."
-
-msgid "Connecting..."
-msgstr "Подключение..."
 
 msgid "Connection"
 msgstr "Соединение"
@@ -2204,20 +2180,8 @@ msgstr "Не удалось принять запрос на сообщение:
 msgid "Could not add them: {}"
 msgstr "Не удалось добавить их: {}"
 
-msgid "Could not change the reaction. Check your connection and try again."
-msgstr "Не удалось изменить реакцию. Проверьте соединение и попробуйте ещё раз."
-
-msgid "Could not check device verification. Check your connection and retry."
-msgstr "Не удалось проверить подтверждение устройства. Проверьте соединение и повторите."
-
-msgid "could not check the homeserver's sign-in methods"
-msgstr "не удалось проверить способы входа на сервере"
-
 msgid "Could not decline the call: {}"
 msgstr "Не удалось отклонить звонок: {}"
-
-msgid "Could not delete the message. Check your connection and try again."
-msgstr "Не удалось удалить сообщение. Проверьте соединение и попробуйте ещё раз."
 
 msgid "Could not delete the message: {}"
 msgstr "Не удалось удалить сообщение: {}"
@@ -2225,38 +2189,17 @@ msgstr "Не удалось удалить сообщение: {}"
 msgid "Could not download the file from Discord. Try again."
 msgstr "Не удалось скачать файл из Discord. Попробуйте ещё раз."
 
-msgid "Could not finish leaving voice. Check the connection before retrying."
-msgstr "Не удалось завершить выход из голосового канала. Проверьте соединение и повторите."
-
 msgid "Could not ignore the message request: {}"
 msgstr "Не удалось проигнорировать запрос на сообщение: {}"
 
-msgid "Could not join or finish leaving voice. Check the calling service and connection, then retry."
-msgstr "Не удалось зайти в голосовой канал или завершить выход. Проверьте службу звонков и соединение и повторите."
-
 msgid "Could not list audio devices."
 msgstr "Не удалось получить список аудиоустройств."
-
-msgid "Could not load newer messages. Check your connection and try again."
-msgstr "Не удалось загрузить новые сообщения. Проверьте соединение и попробуйте ещё раз."
-
-msgid "Could not load older messages. Check your connection and try again."
-msgstr "Не удалось загрузить прошлые сообщения. Проверьте соединение и попробуйте ещё раз."
-
-msgid "Could not load the member list. Open the channel again to retry."
-msgstr "Не удалось загрузить список участников. Откройте канал снова, чтобы повторить."
 
 msgid "Could not make an invite: {}"
 msgstr "Не удалось создать приглашение: {}"
 
 msgid "Could not make the group: {}"
 msgstr "Не удалось создать группу: {}"
-
-msgid "could not open the Matrix client and encrypted stores; check the homeserver URL and preserve existing stores"
-msgstr "не удалось открыть клиент Matrix и зашифрованные хранилища; проверьте адрес сервера и сохраните существующие хранилища"
-
-msgid "Could not open this conversation. Select it again to retry."
-msgstr "Не удалось открыть этот чат. Выберите его снова, чтобы повторить."
 
 msgid "Could not open this Discord channel."
 msgstr "Не удалось открыть этот канал Discord."
@@ -2273,32 +2216,11 @@ msgstr "Не удалось открыть динамики. Выберите д
 msgid "Could not pin the message: {}"
 msgstr "Не удалось закрепить сообщение: {}"
 
-msgid "could not preserve the crypto store password in the OS credential store"
-msgstr "не удалось сохранить пароль криптохранилища в хранилище учётных данных системы"
-
-msgid "Could not publish your microphone. Check permissions and connection, then retry."
-msgstr "Не удалось передать звук с микрофона. Проверьте права доступа и соединение и повторите."
-
 msgid "Could not remove the friend request: {}"
 msgstr "Не удалось убрать запрос в друзья: {}"
 
-msgid "could not restore the saved device; preserve the crypto store before repairing the session"
-msgstr "не удалось восстановить сохранённое устройство; сохраните криптохранилище, прежде чем чинить сеанс"
-
-msgid "could not save credentials in the OS credential store"
-msgstr "не удалось сохранить учётные данные в хранилище системы"
-
 msgid "Could not send or accept the friend request: {}"
 msgstr "Не удалось отправить или принять запрос в друзья: {}"
-
-msgid "Could not send your camera. Check your connection and try again."
-msgstr "Не удалось передать изображение с камеры. Проверьте соединение и попробуйте ещё раз."
-
-msgid "could not start Matrix sync; this homeserver needs Simplified Sliding Sync"
-msgstr "не удалось запустить синхронизацию Matrix; этому серверу нужен Simplified Sliding Sync"
-
-msgid "Could not start the DM. Check the Matrix id and your connection."
-msgstr "Не удалось начать личный чат. Проверьте Matrix ID и соединение."
 
 msgid "Could not start the DM: {}"
 msgstr "Не удалось начать личный чат: {}"
@@ -2309,20 +2231,11 @@ msgstr "Не удалось запустить голосовой процесс
 msgid "Could not start voice. Restart Yapfast and try again."
 msgstr "Не удалось запустить голос. Перезапустите Anomi и попробуйте ещё раз."
 
-msgid "Could not start your camera's video."
-msgstr "Не удалось запустить видео с камеры."
-
 msgid "Could not start your camera."
 msgstr "Не удалось запустить камеру."
 
 msgid "Could not start your camera. It may be in use by another app."
 msgstr "Не удалось запустить камеру. Возможно, её использует другое приложение."
-
-msgid "Could not start your microphone. Check permissions or choose another device."
-msgstr "Не удалось запустить микрофон. Проверьте права доступа или выберите другое устройство."
-
-msgid "Could not stop microphone capture. Leave voice to release the device."
-msgstr "Не удалось остановить захват микрофона. Выйдите из голоса, чтобы освободить устройство."
 
 msgid "Could not switch microphone. Refresh devices and choose another."
 msgstr "Не удалось переключить микрофон. Обновите список устройств и выберите другое."
@@ -2639,9 +2552,6 @@ msgstr "создал(а) вебхук"
 msgid "Creating..."
 msgstr "Создание..."
 
-msgid "Credentials are stored in the OS credential store."
-msgstr "Учётные данные хранятся в хранилище учётных данных системы."
-
 msgid "Current activity"
 msgstr "Текущая активность"
 
@@ -2912,9 +2822,6 @@ msgstr "Отключить участника"
 msgid "disconnect them"
 msgstr "отключить участника от голосового канала"
 
-msgid "Discord and Matrix show \"typing...\" while you write. Others still show here when they type."
-msgstr "Discord и Matrix показывают «печатает...», пока вы пишете. Здесь другие тоже видны, когда печатают."
-
 msgid "Discord answered {}."
 msgstr "Discord ответил: {}."
 
@@ -3161,12 +3068,6 @@ msgstr "Discord хочет убедиться, что вы человек, пр�
 msgid "Discord won't let this account use this gift."
 msgstr "Discord не позволяет этому аккаунту использовать этот подарок."
 
-msgid "Discord · not end-to-end encrypted."
-msgstr "Discord · без сквозного шифрования."
-
-msgid "Discord · not end-to-end encrypted. Enter to send, Shift+Enter for a new line."
-msgstr "Discord · без сквозного шифрования. Enter — отправить, Shift+Enter — новая строка."
-
 msgid "Discord's file storage answered {}."
 msgstr "Хранилище файлов Discord ответило: {}."
 
@@ -3350,9 +3251,6 @@ msgstr "Кодировщик:"
 msgid "ENCODING"
 msgstr "КОДИРОВАНИЕ"
 
-msgid "Encrypted message"
-msgstr "Зашифрованное сообщение"
-
 msgid "End Poll Now"
 msgstr "Завершить опрос сейчас"
 
@@ -3400,12 +3298,6 @@ msgstr "Введите 6-значный код, который Discord отпр�
 
 msgid "Enter the 6-digit code from your authenticator app."
 msgstr "Введите 6-значный код из приложения-аутентификатора."
-
-msgid "Enter your homeserver, Matrix ID, and password."
-msgstr "Введите домашний сервер, Matrix ID и пароль."
-
-msgid "Enter your Matrix recovery key."
-msgstr "Введите ключ восстановления Matrix."
 
 msgid "Enter your password."
 msgstr "Введите пароль."
@@ -3542,9 +3434,6 @@ msgstr "ФАЙЛ"
 msgid "File should be APNG, JPG, PNG or GIF (512 KB max)"
 msgstr "Файл в формате APNG, JPG, PNG или GIF (не более 512 КБ)"
 
-msgid "Files must be 50 MB or smaller."
-msgstr "Файлы должны быть не больше 50 МБ."
-
 msgid "Filter by Action"
 msgstr "Фильтр по действию"
 
@@ -3568,9 +3457,6 @@ msgstr "Найти личный чат"
 
 msgid "Find a friend"
 msgstr "Найти друга"
-
-msgid "Find a friend, or type a Matrix id"
-msgstr "Найдите друга или введите Matrix ID"
 
 msgid "Find an emoji"
 msgstr "Найти эмодзи"
@@ -3635,14 +3521,8 @@ msgstr "При сообщении с уведомлением, пока Anomi н
 msgid "For channel"
 msgstr "Канал:"
 
-msgid "For new messages while Yapfast isn't in front. Each Discord server's notification settings and your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation."
-msgstr "О новых сообщениях, пока Anomi не на переднем плане. Какие именно, решают настройки уведомлений каждого сервера Discord и ваши правила уведомлений Matrix: обычно ЛС и упоминания. Нажатие открывает беседу."
-
 msgid "For new messages while Yapfast isn't in front. Each Discord server's notification settings decide which: usually DMs and mentions. Clicking one opens the conversation."
 msgstr "О новых сообщениях, пока Anomi не на переднем плане. Какие именно, решают настройки уведомлений каждого сервера Discord: обычно ЛС и упоминания. Нажатие открывает беседу."
-
-msgid "For new messages while Yapfast isn't in front. Your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation."
-msgstr "О новых сообщениях, пока Anomi не на переднем плане. Какие именно, решают ваши правила уведомлений Matrix: обычно ЛС и упоминания. Нажатие открывает беседу."
 
 msgid "For {n} hour"
 msgid_plural "For {n} hours"
@@ -3686,9 +3566,6 @@ msgstr "Переслано, но добавленное вами сообщен�
 
 msgid "Forwarding doesn't cross between Discord and Matrix."
 msgstr "Пересылка между Discord и Matrix невозможна."
-
-msgid "Forwarding is available only into joined, encrypted rooms."
-msgstr "Пересылка доступна только в комнаты с шифрованием, в которых вы состоите."
 
 msgid "Frame on"
 msgstr "Рамка включена"
@@ -3876,18 +3753,6 @@ msgstr "Отображается отдельно"
 msgid "Hold the key in any app to talk."
 msgstr "Удерживайте клавишу в любом приложении, чтобы говорить."
 
-msgid "HOMESERVER"
-msgstr "ДОМАШНИЙ СЕРВЕР"
-
-msgid "Homeserver"
-msgstr "Домашний сервер"
-
-msgid "homeserver URLs must not contain credentials"
-msgstr "адрес сервера не должен содержать учётных данных"
-
-msgid "homeservers require HTTPS; HTTP is allowed only for the local development stack"
-msgstr "серверам нужен HTTPS; HTTP разрешён только для локального стенда разработки"
-
 msgid "How long your microphone keeps sending after you let go of the key, so the end of a word isn't cut off."
 msgstr "Как долго микрофон продолжает передавать после того, как вы отпустили клавишу, чтобы конец слова не обрезался."
 
@@ -3932,9 +3797,6 @@ msgstr "Игнорировать запрос в друзья от {}"
 
 msgid "IMAGE"
 msgstr "ИЗОБР."
-
-msgid "Image"
-msgstr "Изображение"
 
 msgid "Image viewer"
 msgstr "Просмотр изображения"
@@ -4086,14 +3948,8 @@ msgstr "Интересно"
 msgid "Interface with your Discord client"
 msgstr "Взаимодействовать с вашим клиентом Discord"
 
-msgid "Invalid calling-service URL. Check Yapfast's configuration."
-msgstr "Недопустимый адрес службы звонков. Проверьте настройки Anomi."
-
 msgid "Invalid file type"
 msgstr "Недопустимый тип файла"
-
-msgid "invalid homeserver URL"
-msgstr "недопустимый адрес сервера"
 
 msgid "Invalid sticker file"
 msgstr "Недопустимый файл стикера"
@@ -4259,9 +4115,6 @@ msgstr "Присоединитесь к звонку, чтобы смотрет�
 msgid "join the thread"
 msgstr "присоединиться к ветке"
 
-msgid "Join this channel in a Matrix client first."
-msgstr "Сначала зайдите в этот канал в клиенте Matrix."
-
 msgid "Join thread"
 msgstr "Присоединиться к ветке"
 
@@ -4414,9 +4267,6 @@ msgstr "Покинуть ветку"
 
 msgid "Leave voice"
 msgstr "Покинуть голосовой канал"
-
-msgid "Leave voice before recovering this device."
-msgstr "Выйдите из голосового канала, прежде чем восстанавливать это устройство."
 
 msgid "Leave without notifying other members"
 msgstr "Покинуть, не уведомляя других участников"
@@ -4578,9 +4428,6 @@ msgstr "Ветка заблокирована: открыть её могут т
 msgid "Locked, Nitro only: {}"
 msgstr "Заблокировано, только для Nitro: {}"
 
-msgid "logout failed; credentials were kept so you can retry"
-msgstr "не удалось выйти; учётные данные сохранены, можно повторить"
-
 msgid "Long messages and code show their first lines, with Show more to see the rest."
 msgstr "Длинные сообщения и код показывают первые строки, остальное по кнопке «Показать ещё»."
 
@@ -4724,27 +4571,6 @@ msgstr "Пометить {} как спойлер"
 
 msgid "Marked the channel as age-restricted"
 msgstr "Канал помечен как возрастной"
-
-msgid "MATRIX ID"
-msgstr "MATRIX ID"
-
-msgid "Matrix ID"
-msgstr "Matrix ID"
-
-msgid "Matrix recovery key"
-msgstr "Ключ восстановления Matrix"
-
-msgid "Matrix shows \"typing...\" while you write. Others still show here when they type."
-msgstr "Matrix показывает «печатает...», пока вы пишете. Здесь другие тоже видны, когда печатают."
-
-msgid "Matrix sync did not load the account before its deadline"
-msgstr "синхронизация Matrix не загрузила аккаунт за отведённое время"
-
-msgid "Matrix sync stopped before it loaded the account"
-msgstr "синхронизация Matrix остановилась, не загрузив аккаунт"
-
-msgid "Matrix sync stopped; check homeserver support and connection"
-msgstr "синхронизация Matrix остановилась; проверьте поддержку сервера и соединение"
 
 msgid "Max file size is {} MB please."
 msgstr "Максимальный размер файла — {} МБ."
@@ -4893,9 +4719,6 @@ msgstr "Написать в #{}"
 msgid "Message @{}"
 msgstr "Написать @{}"
 
-msgid "Message deleted"
-msgstr "Сообщение удалено"
-
 msgid "Message forwarded."
 msgstr "Сообщение переслано."
 
@@ -4920,9 +4743,6 @@ msgstr "Сообщения"
 
 msgid "Messages from server members without a role will be filtered for sensitive image-based media."
 msgstr "Сообщения участников сервера без ролей будут проверяться на изображения деликатного содержания."
-
-msgid "Messages must contain text and be under 16 KB."
-msgstr "Сообщение должно содержать текст и быть меньше 16 КБ."
 
 msgid "Messages will not be filtered for sensitive image-based media."
 msgstr "Сообщения не будут проверяться на изображения деликатного содержания."
@@ -5286,9 +5106,6 @@ msgstr "Нет изображения"
 msgid "No Inactive Channel"
 msgstr "Нет канала для неактивных"
 
-msgid "No joined channels in this server. Join a channel in another Matrix client to see it here."
-msgstr "Вы не состоите ни в одном канале этого сервера. Войдите в канал в другом клиенте Matrix, чтобы увидеть его здесь."
-
 msgid "No keybind set"
 msgstr "Не задано"
 
@@ -5316,9 +5133,6 @@ msgstr "Участники не найдены."
 msgid "No messages yet"
 msgstr "Сообщений пока нет"
 
-msgid "No microphone found. Connect a microphone and refresh devices."
-msgstr "Микрофон не найден. Подключите микрофон и обновите список устройств."
-
 msgid "No microphones found. Connect one, then reopen this menu."
 msgstr "Микрофоны не найдены. Подключите микрофон и снова откройте это меню."
 
@@ -5336,9 +5150,6 @@ msgstr "Больше никто не присоединился."
 
 msgid "No one found."
 msgstr "Никого не найдено."
-
-msgid "No one found. For Matrix, type a full id such as @name:example.org."
-msgstr "Никого не найдено. Для Matrix введите полный идентификатор, например @name:example.org."
 
 msgid "No permissions found"
 msgstr "Права не найдены"
@@ -5358,9 +5169,6 @@ msgstr "Ничего не найдено"
 msgid "No roles"
 msgstr "Нет ролей"
 
-msgid "no saved session in this directory; sign in first"
-msgstr "в этой папке нет сохранённого сеанса; сначала войдите"
-
 msgid "No Server Tag"
 msgstr "Без тега сервера"
 
@@ -5369,9 +5177,6 @@ msgstr "Общих серверов нет"
 
 msgid "no slots available"
 msgstr "нет свободных слотов"
-
-msgid "No speakers found. Connect an audio output and retry."
-msgstr "Динамики не найдены. Подключите аудиовыход и повторите."
 
 msgid "No speakers found. Connect one, then reopen this menu."
 msgstr "Динамики не найдены. Подключите динамики и снова откройте это меню."
@@ -5596,6 +5401,9 @@ msgstr "Файлы могут быть только в форме."
 msgid "Only a server has that setting."
 msgstr "Эта настройка есть только у сервера."
 
+msgid "Only Discord's voice channels can be joined."
+msgstr "Подключаться можно только к голосовым каналам Discord."
+
 msgid "Only Mentions"
 msgstr "Только упоминания"
 
@@ -5727,9 +5535,6 @@ msgstr "Права владельца переданы:"
 
 msgid "Passthrough"
 msgstr "Наследовать"
-
-msgid "PASSWORD"
-msgstr "ПАРОЛЬ"
 
 msgid "Password"
 msgstr "Пароль"
@@ -6144,21 +5949,6 @@ msgstr "Переподключение к голосовому каналу..."
 msgid "Record keybind"
 msgstr "Записать сочетание"
 
-msgid "Recover"
-msgstr "Восстановить"
-
-msgid "Recovering encryption keys..."
-msgstr "Восстановление ключей шифрования..."
-
-msgid "Recovery failed. Check your recovery key and connection, then retry."
-msgstr "Не удалось восстановить. Проверьте ключ восстановления и соединение и повторите."
-
-msgid "recovery failed; check the recovery key and homeserver connection"
-msgstr "не удалось восстановить; проверьте ключ восстановления и соединение с сервером"
-
-msgid "Recovery key"
-msgstr "Ключ восстановления"
-
 msgid "Redeem Gift"
 msgstr "Активировать подарок"
 
@@ -6384,9 +6174,6 @@ msgstr "Это событие восстановлено"
 msgid "Retry"
 msgstr "Повторить"
 
-msgid "Retry saved session"
-msgstr "Повторить сохранённый сеанс"
-
 msgid "Revoke Ban"
 msgstr "Отозвать бан"
 
@@ -6531,9 +6318,6 @@ msgstr "Демонстрация экрана использует видеок�
 msgid "Screen sharing was cancelled, or this desktop has no screen sharing dialog."
 msgstr "Демонстрация экрана отменена, или на этом рабочем столе нет окна выбора экрана."
 
-msgid "Screen sharing works in Discord calls for now."
-msgstr "Демонстрация экрана пока работает только в звонках Discord."
-
 msgid "Screen {}"
 msgstr "Экран {}"
 
@@ -6600,9 +6384,6 @@ msgstr "Поиск: {}"
 msgid "Searching..."
 msgstr "Поиск..."
 
-msgid "Secret Service is unavailable. Credentials are in a private file readable by your Linux user."
-msgstr "Secret Service недоступна. Учётные данные лежат в закрытом файле, доступном вашему пользователю Linux."
-
 msgid "Secure connection"
 msgstr "Защищённое соединение"
 
@@ -6620,9 +6401,6 @@ msgstr "Видеть ваших друзей, ожидающие заявки в
 
 msgid "See {} more"
 msgstr "Показать ещё {}"
-
-msgid "Select a voice channel to join voice."
-msgstr "Выберите голосовой канал, чтобы зайти в голос."
 
 msgid "Select All"
 msgstr "Выбрать всё"
@@ -6644,12 +6422,6 @@ msgstr "Выберите до 5 тегов"
 
 msgid "Select where you want to share this message."
 msgstr "Выберите, куда переслать это сообщение."
-
-msgid "Selected microphone is unavailable. Choose another device."
-msgstr "Выбранный микрофон недоступен. Выберите другое устройство."
-
-msgid "Selected speakers are unavailable. Choose another device."
-msgstr "Выбранные динамики недоступны. Выберите другое устройство."
 
 msgid "Send"
 msgstr "Отправить"
@@ -6707,12 +6479,6 @@ msgstr "Передаётся"
 
 msgid "Sending command…"
 msgstr "Отправка команды…"
-
-msgid "Sending is available only in joined, encrypted rooms."
-msgstr "Отправка доступна только в комнатах с шифрованием, в которых вы состоите."
-
-msgid "Sending is locked until this device is verified."
-msgstr "Отправка заблокирована, пока это устройство не подтверждено."
 
 msgid "Sending it to Yapfast..."
 msgstr "Отправка в Anomi..."
@@ -6830,12 +6596,6 @@ msgstr "Тег сервера {}"
 
 msgid "Servers who reach Boosting Level 1 and above get unique invite embeds with custom Server Invite Backgrounds. The recommended minimum size is 1920x1080 and recommended aspect ratio is 16:9."
 msgstr "Серверы с бустом 1 уровня и выше получают особые приглашения с собственным фоном. Рекомендуемый минимальный размер 1920x1080, соотношение сторон 16:9."
-
-msgid "session credentials are unavailable in the OS credential store; unlock it and retry"
-msgstr "учётные данные сеанса недоступны в хранилище системы; разблокируйте его и повторите"
-
-msgid "session metadata is damaged; preserve the stores before repairing it"
-msgstr "метаданные сеанса повреждены; сохраните хранилища, прежде чем чинить их"
 
 msgid "Set a custom status"
 msgstr "Задать свой статус"
@@ -7158,23 +6918,11 @@ msgstr[0] "Показано: {} участник"
 msgstr[1] "Показано: {} участника"
 msgstr[2] "Показано: {} участников"
 
-msgid "Sign in"
-msgstr "Войти"
-
 msgid "Sign in to Yapfast"
 msgstr "Вход в Anomi"
 
-msgid "Sign in with your Matrix password. Single sign-on isn't available yet."
-msgstr "Войдите с паролем Matrix. Единый вход пока недоступен."
-
 msgid "Sign out"
 msgstr "Выйти"
-
-msgid "sign-in failed; check the homeserver, username and password"
-msgstr "не удалось войти; проверьте сервер, имя пользователя и пароль"
-
-msgid "Sign-out failed. Your session is kept. Check the connection and try again."
-msgstr "Не удалось выйти. Сеанс сохранён. Проверьте соединение и попробуйте ещё раз."
 
 msgid "SIGNALS"
 msgstr "СИГНАЛЫ"
@@ -7572,9 +7320,6 @@ msgstr "Размер текста"
 msgid "That confirmation is no longer waiting."
 msgstr "Это подтверждение больше не ожидается."
 
-msgid "That conversation is no longer joined."
-msgstr "Вы больше не состоите в этом чате."
-
 msgid "That didn't work. Check it and try again."
 msgstr "Не получилось. Проверьте ввод и попробуйте снова."
 
@@ -7593,9 +7338,6 @@ msgstr "Этот тип файла не поддерживается."
 msgid "That isn't a Discord room."
 msgstr "Это не комната Discord."
 
-msgid "That isn't a Matrix id, such as @name:example.org."
-msgstr "Это не Matrix ID, например @name:example.org."
-
 msgid "That isn't a stream Yapfast knows how to watch."
 msgstr "Anomi не умеет показывать такую трансляцию."
 
@@ -7610,9 +7352,6 @@ msgstr "В этом сообщении нет файла для сохранен
 
 msgid "That message is still sending, so it can't be cancelled."
 msgstr "Это сообщение ещё отправляется, поэтому его нельзя отменить."
-
-msgid "That message was already sent, so it could not be cancelled."
-msgstr "Это сообщение уже отправлено, поэтому его нельзя отменить."
 
 msgid "That poll is gone."
 msgstr "Этот опрос удалён."
@@ -7646,15 +7385,6 @@ msgstr "Битрейт зависит от пропускной способно
 
 msgid "The call stays connected while you browse other conversations."
 msgstr "Звонок продолжается, пока вы просматриваете другие чаты."
-
-msgid "The calling service refused the voice connection. Check that it allows this homeserver, then retry."
-msgstr "Служба звонков отклонила голосовое соединение. Проверьте, что она разрешает этот сервер, и повторите."
-
-msgid "The calling-service URL must not contain credentials."
-msgstr "Адрес службы звонков не должен содержать учётных данных."
-
-msgid "The calling-service URL needs HTTPS."
-msgstr "Адрес службы звонков должен использовать HTTPS."
 
 msgid "The check stopped partway."
 msgstr "Проверка прервалась."
@@ -7725,17 +7455,11 @@ msgstr "Новая версия не запустилась: {}."
 msgid "The new version's start-up check took too long."
 msgstr "Проверка запуска новой версии заняла слишком много времени."
 
-msgid "The original message could not be loaded."
-msgstr "Не удалось загрузить исходное сообщение."
-
 msgid "The original message couldn't be loaded."
 msgstr "Не удалось загрузить исходное сообщение."
 
 msgid "The original message was deleted."
 msgstr "Исходное сообщение удалено."
-
-msgid "the OS credential store is unavailable; unlock it before signing in"
-msgstr "хранилище учётных данных системы недоступно; разблокируйте его, прежде чем входить"
 
 msgid "the other channel"
 msgstr "другой канал"
@@ -7757,9 +7481,6 @@ msgstr "Файл контрольных сумм релиза слишком в�
 
 msgid "The server name must be between {} and {} characters."
 msgstr "Название сервера должно содержать от {} до {} символов."
-
-msgid "the session's crypto store is missing; restore it before signing in again"
-msgstr "криптохранилище сеанса отсутствует; восстановите его, прежде чем входить снова"
 
 msgid "The speakers didn't open in time."
 msgstr "Динамики не открылись вовремя."
@@ -7787,12 +7508,6 @@ msgstr "В пути к обновлению есть символ, с котор
 
 msgid "The video stopped unexpectedly."
 msgstr "Видео неожиданно остановилось."
-
-msgid "Their audio can't be decrypted. They may need to rejoin."
-msgstr "Их звук не удаётся расшифровать. Возможно, им нужно зайти заново."
-
-msgid "Their audio key hasn't arrived, so you can't hear them yet."
-msgstr "Ключ их звука ещё не пришёл, поэтому вы пока не слышите их."
 
 msgid "THEIR NICKNAME"
 msgstr "ИХ НИКНЕЙМ"
@@ -7845,9 +7560,6 @@ msgstr "Для вашей системы пока нет загрузки."
 msgid "There's no Windows installer for this version yet."
 msgstr "Для этой версии пока нет установщика для Windows."
 
-msgid "There's nowhere to forward to yet. Yapfast forwards Matrix messages only into encrypted conversations."
-msgstr "Пересылать пока некуда. Anomi пересылает сообщения Matrix только в зашифрованные чаты."
-
 msgid "They appear locked. Server admins hid them on purpose."
 msgstr "Они отображаются заблокированными. Администраторы сервера скрыли их намеренно."
 
@@ -7869,12 +7581,6 @@ msgstr "Думаю о коопе после девяти, если все не �
 msgid "This app opens a page Yapfast can't show. Use it in Discord."
 msgstr "Это приложение открывает страницу, которую Anomi не может показать. Используйте его в Discord."
 
-msgid "This build of Yapfast has no Matrix sign-in."
-msgstr "В этой сборке Anomi нет входа в Matrix."
-
-msgid "This build of Yapfast has no Matrix voice."
-msgstr "В этой сборке Anomi нет голоса Matrix."
-
 msgid "This build of Yapfast has no networks."
 msgstr "В этой сборке Anomi нет сетей."
 
@@ -7889,9 +7595,6 @@ msgstr "В этом чате пока нет закреплённых сообщ
 
 msgid "This copy can't update itself. Get the new version from the release page."
 msgstr "Эта копия не может обновиться сама. Скачайте новую версию со страницы релиза."
-
-msgid "This device is still unverified. Verify it in another client or enter your recovery key."
-msgstr "Это устройство ещё не подтверждено. Подтвердите его в другом клиенте или введите ключ восстановления."
 
 msgid "This emoji is from"
 msgstr "Это эмодзи из"
@@ -7911,12 +7614,6 @@ msgstr "Это событие идёт сейчас."
 msgid "This event is not in that server."
 msgstr "Этого события нет на том сервере."
 
-msgid "This file is larger than Yapfast saves."
-msgstr "Этот файл больше, чем Anomi может сохранить."
-
-msgid "This file is no longer available."
-msgstr "Этот файл больше недоступен."
-
 msgid "This form has a part Yapfast can't fill yet. Use it in Discord."
 msgstr "В этой форме есть часть, которую Anomi пока не может заполнить. Используйте её в Discord."
 
@@ -7932,20 +7629,8 @@ msgstr "Этот подарок уже активирован."
 msgid "This group has no room for more."
 msgstr "В этой группе больше нет места."
 
-msgid "This homeserver doesn't advertise a MatrixRTC calling service (MSC4143). Ask its administrator to add one, or set YAPFAST_RTC_AUTHORIZATION_URL."
-msgstr "Этот сервер не предоставляет службу звонков MatrixRTC (MSC4143). Попросите администратора добавить её или задайте YAPFAST_RTC_AUTHORIZATION_URL."
-
-msgid "This homeserver doesn't support sticky events (MSC4354), which Yapfast voice channels need. Ask its administrator to enable them (Synapse: experimental_features.msc4354_enabled), or use another homeserver."
-msgstr "Этот сервер не поддерживает закреплённые события (MSC4354), которые нужны голосовым каналам Anomi. Попросите администратора включить их (Synapse: experimental_features.msc4354_enabled) или используйте другой сервер."
-
-msgid "this homeserver requires SSO or OAuth sign-in; this build supports password sign-in only"
-msgstr "этот сервер требует вход через SSO или OAuth; эта сборка поддерживает только вход по паролю"
-
 msgid "This image is no longer available."
 msgstr "Это изображение больше недоступно."
-
-msgid "This image is too large to show here. Save it to open it elsewhere."
-msgstr "Это изображение слишком большое, чтобы показать его здесь. Сохраните его, чтобы открыть в другой программе."
 
 msgid "This interaction failed"
 msgstr "Не удалось выполнить взаимодействие"
@@ -8013,12 +7698,6 @@ msgstr "Эта ссылка {}."
 msgid "this member"
 msgstr "этого участника"
 
-msgid "This message can no longer be edited."
-msgstr "Это сообщение больше нельзя изменить."
-
-msgid "This message can't be forwarded."
-msgstr "Это сообщение нельзя переслать."
-
 msgid "This one only shows in Discord for now."
 msgstr "Пока это отображается только в Discord."
 
@@ -8040,9 +7719,6 @@ msgstr "Эта роль автоматически управляется инт
 msgid "This role is automatically managed by Discord for Server Boosting. It cannot be manually assigned to members or deleted."
 msgstr "Эта роль автоматически управляется Discord для бустов сервера. Её нельзя выдать участникам вручную или удалить."
 
-msgid "This room is no longer joined. Select another conversation."
-msgstr "Вы больше не в этой комнате. Выберите другой чат."
-
 msgid "This server does not have any open emoji slots!"
 msgstr "На этом сервере нет свободных слотов для эмодзи!"
 
@@ -8055,9 +7731,6 @@ msgstr "На этом сервере приостановлены приглаш
 msgid "This server is full."
 msgstr "Этот сервер заполнен."
 
-msgid "this session was written by an unsupported Yapfast version"
-msgstr "этот сеанс создан неподдерживаемой версией Anomi"
-
 msgid "This setting can only be changed by a server owner with 2FA enabled on their account."
 msgstr "Эту настройку может менять только владелец сервера с включённой 2FA."
 
@@ -8069,12 +7742,6 @@ msgstr "Этот стикер с одного из ваших серверов."
 
 msgid "This video is no longer available."
 msgstr "Это видео больше недоступно."
-
-msgid "This voice channel does not require encrypted audio. Ask its owner to enable it."
-msgstr "Этот голосовой канал не требует шифрования звука. Попросите владельца включить его."
-
-msgid "This voice channel has no available call. Ask its owner to set it up."
-msgstr "В этом голосовом канале нет доступного звонка. Попросите владельца настроить его."
 
 msgid "This voice message is no longer available."
 msgstr "Это голосовое сообщение больше недоступно."
@@ -8220,9 +7887,6 @@ msgstr "Twitch (интеграция)"
 msgid "Two-factor authentication was cancelled."
 msgstr "Двухфакторная аутентификация отменена."
 
-msgid "Type a name to find people you know on Discord, or a full Matrix id such as @name:example.org."
-msgstr "Введите имя, чтобы найти знакомых в Discord, или полный идентификатор Matrix, например @name:example.org."
-
 msgid "Type a name to find people you know on Discord."
 msgstr "Введите имя, чтобы найти знакомых в Discord."
 
@@ -8237,9 +7901,6 @@ msgstr "Введите имя друга"
 
 msgid "Type your answer"
 msgstr "Введите ответ"
-
-msgid "Unable to decrypt. Recover your keys to read this message."
-msgstr "Не удалось расшифровать. Восстановите ключи, чтобы прочитать это сообщение."
 
 msgid "Unban Member"
 msgstr "Разбанить участника"
@@ -8265,20 +7926,11 @@ msgstr "Включение звука"
 msgid "Undeafening"
 msgstr "Включение звука"
 
-msgid "Unencrypted room. Reading only in this build."
-msgstr "Незашифрованная комната. В этой сборке только чтение."
-
 msgid "Unfollow channel category"
 msgstr "Отписаться от категории каналов"
 
 msgid "Unknown"
 msgstr "Неизвестно"
-
-msgid "Unknown device; audio keys can't be exchanged."
-msgstr "Неизвестное устройство; обмен ключами звука невозможен."
-
-msgid "Unknown device; your audio key may not reach it."
-msgstr "Неизвестное устройство; ваш ключ звука может до него не дойти."
 
 msgid "Unknown game"
 msgstr "Неизвестная игра"
@@ -8291,12 +7943,6 @@ msgstr "Неизвестный пользователь"
 
 msgid "unlimited"
 msgstr "неограниченно"
-
-msgid "Unlink Discord"
-msgstr "Отвязать Discord"
-
-msgid "Unlinking signs Yapfast out of Discord on this computer."
-msgstr "Отвязка выводит Anomi из Discord на этом компьютере."
 
 msgid "Unlock with Nitro"
 msgstr "Открыть с Nitro"
@@ -8383,9 +8029,6 @@ msgstr "Здесь появятся непрочитанные сообщени�
 msgid "Unreads"
 msgstr "Непрочитанные"
 
-msgid "Unrecognized account; audio keys can't be exchanged."
-msgstr "Неизвестный аккаунт; обмен ключами звука невозможен."
-
 msgid "Unrestricted"
 msgstr "Без ограничений"
 
@@ -8397,9 +8040,6 @@ msgstr "Пока я не включу снова"
 
 msgid "Until it ends, {} can read the server but can't send messages, react, or join voice. The reason goes in the server's audit log."
 msgstr "Пока он не закончится, {} сможет читать сервер, но не сможет писать сообщения, ставить реакции и заходить в голосовые каналы. Причина попадёт в журнал аудита сервера."
-
-msgid "Unverified device. It can't receive your audio key, and Yapfast refuses its key."
-msgstr "Неподтверждённое устройство. Оно не получит ваш ключ звука, а Anomi отклоняет его ключ."
 
 msgid "Up to {}"
 msgstr "До {}"
@@ -8683,12 +8323,6 @@ msgstr "Использовать режим активации по голосу
 msgid "Use your authenticator app"
 msgstr "Использовать приложение-аутентификатор"
 
-msgid "Use your existing Matrix account."
-msgstr "Используйте существующий аккаунт Matrix."
-
-msgid "Use your Matrix recovery key, or verify Yapfast in another client and check again."
-msgstr "Используйте ключ восстановления Matrix или подтвердите Anomi в другом клиенте и проверьте снова."
-
 msgid "Use your password"
 msgstr "Использовать пароль"
 
@@ -8739,15 +8373,6 @@ msgstr "УРОВЕНЬ ПРОВЕРКИ"
 
 msgid "Verification Level"
 msgstr "Уровень проверки"
-
-msgid "Verify this device before forwarding. Use your recovery key or another Matrix client."
-msgstr "Подтвердите это устройство перед пересылкой. Используйте ключ восстановления или другой клиент Matrix."
-
-msgid "Verify this device before sending. Use your recovery key or another Matrix client."
-msgstr "Подтвердите это устройство перед отправкой. Используйте ключ восстановления или другой клиент Matrix."
-
-msgid "Verify this device to send messages"
-msgstr "Подтвердите это устройство, чтобы отправлять сообщения"
 
 msgid "Verify with something else"
 msgstr "Подтвердить другим способом"
@@ -8837,32 +8462,14 @@ msgstr "ГОЛОСОВЫЕ КАНАЛЫ"
 msgid "Voice connected"
 msgstr "Голос подключён"
 
-msgid "Voice could not reconnect within 60 seconds. Join again when your connection returns."
-msgstr "Не удалось переподключиться к голосу за 60 секунд. Зайдите снова, когда соединение восстановится."
-
-msgid "Voice departure timed out. Check the connection before retrying."
-msgstr "Время выхода из голосового канала истекло. Проверьте соединение и повторите."
-
 msgid "Voice details"
 msgstr "Сведения о звонке"
 
 msgid "Voice disconnected"
 msgstr "Голос отключён"
 
-msgid "Voice disconnected. Check your connection and join again."
-msgstr "Голос отключился. Проверьте соединение и зайдите снова."
-
-msgid "Voice encryption is unavailable. This connection was refused."
-msgstr "Шифрование голоса недоступно. Соединение отклонено."
-
-msgid "Voice ended. Join again to reconnect."
-msgstr "Голосовой чат завершён. Зайдите снова, чтобы переподключиться."
-
 msgid "Voice is unavailable. Reconnect and retry."
 msgstr "Голосовая связь недоступна. Переподключитесь и повторите попытку."
-
-msgid "Voice joining timed out. Check the calling service and retry."
-msgstr "Время входа в голосовой канал истекло. Проверьте службу звонков и повторите."
 
 msgid "Voice message controls"
 msgstr "Управление голосовым сообщением"
@@ -9066,9 +8673,6 @@ msgstr "Написать сообщение"
 msgid "Write a reply"
 msgstr "Напишите ответ"
 
-msgid "Yapfast calls require an encrypted room; upgrade encryption explicitly first"
-msgstr "Звонки в Anomi требуют зашифрованной комнаты; сначала включите шифрование"
-
 msgid "Yapfast can't fill this option yet"
 msgstr "Anomi пока не может заполнить этот параметр"
 
@@ -9102,47 +8706,20 @@ msgstr "Anomi не может записывать в свою папку."
 msgid "Yapfast can't write to the AppImage's folder."
 msgstr "Anomi не может записывать в папку AppImage."
 
-msgid "Yapfast could not download or decrypt this file. Check your connection and retry."
-msgstr "Anomi не смог скачать или расшифровать этот файл. Проверьте соединение и повторите."
-
-msgid "Yapfast could not find the message to reply to."
-msgstr "Anomi не нашёл сообщение, на которое нужно ответить."
-
 msgid "Yapfast could not open a file dialog."
 msgstr "Anomi не удалось открыть окно выбора файла."
-
-msgid "Yapfast could not queue that file. Check that it is readable and retry."
-msgstr "Anomi не смог поставить файл в очередь. Проверьте, что он читается, и повторите."
-
-msgid "Yapfast could not queue the forwarded message. Check your connection and retry."
-msgstr "Anomi не смог поставить пересылаемое сообщение в очередь. Проверьте соединение и повторите."
-
-msgid "Yapfast could not queue the message you added. Check your connection."
-msgstr "Anomi не смог поставить в очередь добавленное сообщение. Проверьте соединение."
-
-msgid "Yapfast could not queue this message. Your draft is kept."
-msgstr "Anomi не смог поставить сообщение в очередь. Черновик сохранён."
 
 msgid "Yapfast could not read a file."
 msgstr "Anomi не смог прочитать файл."
 
-msgid "Yapfast could not read that file."
-msgstr "Anomi не смог прочитать этот файл."
-
 msgid "Yapfast could not read {}."
 msgstr "Anomi не смог прочитать {}."
-
-msgid "Yapfast could not write the file there. Choose another folder."
-msgstr "Anomi не смог записать файл туда. Выберите другую папку."
 
 msgid "Yapfast couldn't copy this picture. Save it instead."
 msgstr "Anomi не смог скопировать это изображение. Сохраните его."
 
 msgid "Yapfast couldn't download this image from Discord. Try again."
 msgstr "Anomi не смог скачать это изображение из Discord. Попробуйте ещё раз."
-
-msgid "Yapfast couldn't download this image. Check your connection and try again."
-msgstr "Anomi не смог скачать это изображение. Проверьте соединение и попробуйте ещё раз."
 
 msgid "Yapfast couldn't download this voice message."
 msgstr "Anomi не смог скачать это голосовое сообщение."
@@ -10794,6 +10371,36 @@ msgstr "9 Мбит/с"
 
 msgid "3.5 Mbit/s up to 720p, 9 above"
 msgstr "3,5 Мбит/с до 720p, выше — 9"
+
+msgid "{0}.{1} Mbit/s"
+msgstr "{0},{1} Мбит/с"
+
+msgid "Mbit/s"
+msgstr "Мбит/с"
+
+msgid "Custom value…"
+msgstr "Своё значение…"
+
+msgid "From 1 to 50 Mbit/s"
+msgstr "От 1 до 50 Мбит/с"
+
+msgid "From 1 to 50 Mbit/s. It's a ceiling: the stream still goes lower when the connection can't carry it."
+msgstr "От 1 до 50 Мбит/с. Это потолок: если соединение не тянет, трансляция всё равно снизит битрейт."
+
+msgid "Type how many Mbit/s, such as 20."
+msgstr "Введите число Мбит/с, например 20."
+
+msgid "Type a number, such as 20 or 12.5."
+msgstr "Введите число, например 20 или 12,5."
+
+msgid "The limit goes from 1 to 50 Mbit/s."
+msgstr "Предел — от 1 до 50 Мбит/с."
+
+msgid "Unlocked bitrate"
+msgstr "Сверхбитрейт"
+
+msgid "Lets a stream's bitrate limit be set by hand above 9 Mbit/s, up to 50. Discord documents 9 Mbit/s as the most; what its servers do with more isn't known: the stream may be cut off, lose packets or be dropped. A higher bitrate also needs an upload that fast, and loads the encoder and the people watching."
+msgstr "Позволяет вручную задать предел битрейта трансляции выше 9 Мбит/с, вплоть до 50. В документации Discord указан максимум 9 Мбит/с, а что его серверы делают с большим битрейтом, неизвестно: трансляцию могут оборвать, она может терять пакеты или вовсе отключиться. Кроме того, высокому битрейту нужна такая же скорость отдачи, и он сильнее нагружает кодировщик и зрителей."
 
 msgid "The graphics card's encoder failed, so the processor encodes the stream now."
 msgstr "Кодировщик видеокарты отказал, поэтому теперь трансляцию кодирует процессор."

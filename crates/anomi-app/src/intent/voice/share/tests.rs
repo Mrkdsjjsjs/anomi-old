@@ -17,7 +17,7 @@ use crate::app::App;
 use crate::project::voice::tests::in_call;
 
 /// A call in the preview, this account's stream `phase` when there is one.
-fn call(name: &str, phase: Option<SharePhase>) -> (App, std::path::PathBuf) {
+pub(super) fn call(name: &str, phase: Option<SharePhase>) -> (App, std::path::PathBuf) {
     let (mut app, folder) = in_call(name);
     app.core.state.preview = true;
     app.core.state.voice.sharing = phase.map(|phase| Sharing {
@@ -28,17 +28,17 @@ fn call(name: &str, phase: Option<SharePhase>) -> (App, std::path::PathBuf) {
     (app, folder)
 }
 
-fn ask(app: &mut App, intent: Intent) {
+pub(super) fn ask(app: &mut App, intent: Intent) {
     drop(super::handle(app, intent));
 }
 
-fn done(app: App, folder: std::path::PathBuf) {
+pub(super) fn done(app: App, folder: std::path::PathBuf) {
     drop(app);
     let _ = std::fs::remove_dir_all(folder);
 }
 
 /// The texts of the rows marked chosen, the submenus' among them.
-fn marked(rows: &[Row]) -> Vec<String> {
+pub(super) fn marked(rows: &[Row]) -> Vec<String> {
     let mut found = Vec::new();
     for row in rows {
         if row.checked {

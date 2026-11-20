@@ -326,17 +326,16 @@ mod tests {
 
     #[tokio::test]
     async fn serves_the_page_and_takes_the_solution() {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
         let page = Page::serve(&captcha()).await.unwrap();
         let url = page.url.clone();
         let solution = tokio::spawn(async move { page.solution().await });
-        let client = reqwest::Client::new();
+        let client = yapfast_http::wreq::Client::new();
         let html = client.get(&url).send().await.unwrap().text().await.unwrap();
         assert!(html.contains("host=discord.com"), "{html}");
         assert!(html.contains(r#""data<\/script>""#), "{html}");
         let elsewhere = url.rsplit_once('/').unwrap().0.to_owned() + "/guess";
         let status = client.get(elsewhere).send().await.unwrap().status();
-        assert_eq!(status, reqwest::StatusCode::NOT_FOUND);
+        assert_eq!(status, yapfast_http::wreq::StatusCode::NOT_FOUND);
         client.post(&url).body("solved").send().await.unwrap();
         assert_eq!(solution.await.unwrap().unwrap(), "solved");
     }

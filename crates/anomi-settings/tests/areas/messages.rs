@@ -80,18 +80,11 @@ fn the_other_switches_report_the_flip() {
 }
 
 #[test]
-fn the_typing_switch_names_the_networks() {
-    let both = compact();
-    let mut ui = Simulator::with_size(settings(), SIZE, view(&both, front()));
-    assert!(ui.find("Discord and Matrix show \"typing...\" while you write. Others still show here when they type.").is_ok());
-    let matrix = Messages {
-        discord: false,
-        ..compact()
-    };
-    let mut ui = Simulator::with_size(settings(), SIZE, view(&matrix, front()));
+fn the_typing_switch_names_discord() {
+    let mut ui = Simulator::with_size(settings(), SIZE, view(&compact(), front()));
     assert!(
         ui.find(
-            "Matrix shows \"typing...\" while you write. Others still show here when they type."
+            "Discord shows \"typing...\" while you write. Others still show here when they type."
         )
         .is_ok()
     );

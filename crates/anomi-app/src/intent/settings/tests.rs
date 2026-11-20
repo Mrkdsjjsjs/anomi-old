@@ -212,6 +212,24 @@ fn optimization_keeps_where_streams_encode_and_the_cores_mode() {
     assert_eq!(file["cpu_mode"], "all");
 }
 
+/// Optimization: "Unlocked bitrate" is off until turned on, shown at once,
+/// and kept in `layout.json` only while it's on. The workers' switch it
+/// also turns is the process's, which tests running beside this one set
+/// as their apps start, so it isn't asserted here.
+#[test]
+fn optimization_keeps_the_bitrates_unlock() {
+    use anomi_vm::settings::advanced::Intent as Advanced;
+    let mut window = opened("settings-bitrate", Page::Advanced);
+    let app = &mut window.app;
+    assert!(!app.vm.settings.advanced.bitrate_unlocked);
+    send(app, Intent::Advanced(Advanced::BitrateUnlocked(true)));
+    assert!(app.vm.settings.advanced.bitrate_unlocked, "shown at once");
+    assert_eq!(written(app)["stream_bitrate_unlocked"], true);
+    send(app, Intent::Advanced(Advanced::BitrateUnlocked(false)));
+    assert!(!app.vm.settings.advanced.bitrate_unlocked);
+    assert!(written(app).get("stream_bitrate_unlocked").is_none());
+}
+
 /// Optimization: what draws the interface is kept as its key, marked at
 /// once, and the Slint app's switch stays as it came. Only the processor
 /// is chosen: a graphics adapter would start a GPU under the tests.

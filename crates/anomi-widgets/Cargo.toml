@@ -2,7 +2,7 @@
 name = "anomi-widgets"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 description = "The iced interface's own widgets, one module each, styled from anomi-theme"

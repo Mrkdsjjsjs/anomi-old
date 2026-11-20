@@ -28,6 +28,11 @@ pub fn handle(app: &mut App, intent: shell::Intent) -> Task<Message> {
         }
         Intent::Resized(panel, size) => keep(app, panel, Some(size)),
         Intent::ResetSize(panel) => keep(app, panel, None),
+        // Escape or a press beside the bitrate typed by hand leaves it for
+        // what it came from, the Go Live dialog or the stream's menu.
+        Intent::Close(Layer::Share) if app.vm.voice.share.entry.is_some() => {
+            super::voice::share::cancel_entry(app)
+        }
         Intent::Close(layer) => close(app, layer),
         Intent::Gone(layer) => {
             app.vm.shell.gone(layer);

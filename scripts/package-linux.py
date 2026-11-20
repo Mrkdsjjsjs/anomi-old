@@ -50,9 +50,7 @@ def main():
     build = json.loads((parts / "build.json").read_text())
     with tempfile.TemporaryDirectory(prefix="yapfast-linux-package-") as temporary:
         temporary = Path(temporary)
-        rtc = source_snapshot(metadata, base, temporary, source_path)
-        if rtc:
-            raise SystemExit("The AppImage is the Discord flavour, which has no AGPL dependencies")
+        source_snapshot(base, temporary, source_path)
 
         appdir = temporary / "AppDir"
         shutil.copytree(parts / "AppDir", appdir, symlinks=True)

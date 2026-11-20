@@ -202,7 +202,8 @@ fn anomis_own_keys_read_and_stay() {
         r#"{"theme": "nord", "denoised_people": ["discord:u3"],
             "echo_removed_people": ["discord:u4", "discord:u3"],
             "echo_cancellation": false, "cpu_mode": {"cores": [8, 9, 10]},
-            "stream_encoder": "pci:0000:73:00.0", "gpu_encoding": true}"#,
+            "stream_encoder": "pci:0000:73:00.0", "gpu_encoding": true,
+            "stream_bitrate_unlocked": true}"#,
     )
     .unwrap();
     let mut layout = Layout::read(&folder);
@@ -226,6 +227,7 @@ fn anomis_own_keys_read_and_stay() {
     assert_eq!(layout.echo_cancellation, Some(false));
     assert_eq!(layout.cores(), CpuChoice::Cores(vec![8, 9, 10]));
     assert_eq!(layout.encoder(), Encoder::Card("pci:0000:73:00.0".into()));
+    assert!(layout.stream_bitrate_unlocked);
     layout.edit(|saved| saved.cpu_mode = Some(CpuChoice::All));
     layout.flush();
     let file = written(&folder);
@@ -237,6 +239,7 @@ fn anomis_own_keys_read_and_stay() {
     assert!(file.get("denoised_people").is_none() && file.get("echo_removed_people").is_none());
     assert_eq!(file["echo_cancellation"], json!(false));
     assert_eq!(file["stream_encoder"], json!("pci:0000:73:00.0"));
+    assert_eq!(file["stream_bitrate_unlocked"], json!(true));
     layout.edit(|saved| saved.cpu_mode = Some(CpuChoice::Cores(vec![12])));
     layout.flush();
     assert_eq!(written(&folder)["cpu_mode"], json!({"cores": [12]}));
@@ -256,6 +259,7 @@ fn unset_own_keys_arent_written() {
         "echo_cancellation",
         "cpu_mode",
         "stream_encoder",
+        "stream_bitrate_unlocked",
         "interface_renderer",
         "renderer_failures",
         "renderer_trying",

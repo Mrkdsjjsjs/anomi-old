@@ -735,6 +735,9 @@ enum Request {
         placements: Vec<ready::Placement>,
         reply: Option<oneshot::Sender<Vec<ready::Placement>>>,
     },
+    /// Connect again now, rather than once the wait after a lost
+    /// connection ends; see [`Discord::reconnect`].
+    Reconnect,
     /// Yapfast quits; see [`Discord::shut_down`]. Dropped once done.
     ShutDown(oneshot::Sender<()>),
 }
@@ -4078,6 +4081,15 @@ impl Discord {
         if self.requests.send(Request::ShutDown(done)).is_ok() {
             let _ = gone.await;
         }
+    }
+
+    /// Connects again at once, as the Reconnect button asks, when the
+    /// connection was lost and the session waits to connect again.
+    /// Connected or connecting, or stopped for good, it changes nothing;
+    /// the cap on how often Discord is identified with holds either way
+    /// ([`crate::gateway::Reconnects`]).
+    pub fn reconnect(&self) {
+        let _ = self.requests.send(Request::Reconnect);
     }
 
     /// Shows others whether this account is muted or deafened, and whether

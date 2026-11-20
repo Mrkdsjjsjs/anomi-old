@@ -86,6 +86,14 @@ pub(super) fn dialog_closed(app: &mut App) {
     }
 }
 
+/// Either of the stream's menus closes, as when "Custom value…", a radio
+/// row that would leave it open, opens the hand entry in its place.
+pub(super) fn close(app: &mut App) {
+    if showing(app).is_some() {
+        crate::intent::menus::close(app);
+    }
+}
+
 /// After each update: the tile's menu closes as the stream ends, and
 /// follows whether it's live and the sound the dock's button turns off or
 /// back on. A few comparisons while nothing changed.

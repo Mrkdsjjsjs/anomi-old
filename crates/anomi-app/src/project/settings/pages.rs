@@ -3,7 +3,8 @@
 //! properties (`src/ui.rs:1728`) and `src/ui/updates.rs` fills About. Each
 //! is built again only after the layout changed. Advanced's Optimization
 //! also reads the processor and the graphics cards from the system then,
-//! and what draws the interface (`super::drawing`).
+//! and what draws the interface (`super::drawing`); its bitrate's unlock is
+//! the layout's.
 
 use anomi_vm::settings::{about, advanced, messages, notifications, sounds};
 use yapfast_core::new_tags;
@@ -61,8 +62,6 @@ pub(super) fn messages(layout: &Layout, page: &mut messages::Messages) {
         share_typing: layout.share_typing.unwrap_or(true),
         reply_ping: layout.reply_ping.unwrap_or(true),
         strip_tracking: layout.strip_tracking.unwrap_or(true),
-        matrix: cfg!(feature = "matrix"),
-        discord: cfg!(feature = "discord"),
     };
     set(page, built);
 }
@@ -72,8 +71,6 @@ pub(super) fn notifications(layout: &Layout, page: &mut notifications::Notificat
         notifications: layout.notifications.unwrap_or(true),
         text: layout.notification_text.unwrap_or(true),
         flash_taskbar: layout.flash_taskbar.unwrap_or(true),
-        matrix: cfg!(feature = "matrix"),
-        discord: cfg!(feature = "discord"),
     };
     set(page, built);
 }
@@ -125,6 +122,7 @@ pub(super) fn advanced(layout: &Layout, kept: &Kept, page: &mut advanced::Advanc
         encoder_keys: encoding.keys,
         encoder: encoding.chosen,
         encoder_line: encoding.line,
+        bitrate_unlocked: layout.stream_bitrate_unlocked,
     };
     set(page, built);
 }

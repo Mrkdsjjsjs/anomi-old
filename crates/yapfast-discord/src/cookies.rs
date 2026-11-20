@@ -6,7 +6,9 @@
 //! One jar serves every Discord request in the process, as a browser's does.
 //! Persistent cookies are saved in Yapfast's data directory and load on the next
 //! start; session cookies end with the process. With a test server the jar
-//! stays in memory.
+//! stays in memory. Requests to other sites go through a client without it
+//! ([`yapfast_http::web`]), so they neither get Discord's cookies nor leave
+//! their own here.
 
 use std::{
     io::Write,
@@ -15,8 +17,12 @@ use std::{
 };
 
 use cookie_store::{CookieStore, RawCookie};
-use reqwest::header::HeaderValue;
 use url::Url;
+use yapfast_http::wreq::{
+    Uri, Version,
+    cookie::{CookieStore as Store, Cookies},
+    header::HeaderValue,
+};
 
 use crate::client;
 
@@ -77,8 +83,16 @@ fn write(file: &std::path::Path, store: &CookieStore) -> anyhow::Result<()> {
     Ok(())
 }
 
-impl reqwest::cookie::CookieStore for Jar {
-    fn set_cookies(&self, headers: &mut dyn Iterator<Item = &HeaderValue>, url: &Url) {
+/// The request's address as the cookie store takes it.
+fn url_of(uri: &Uri) -> Option<Url> {
+    Url::parse(&uri.to_string()).ok()
+}
+
+impl Store for Jar {
+    fn set_cookies(&self, headers: &mut dyn Iterator<Item = &HeaderValue>, uri: &Uri) {
+        let Some(url) = url_of(uri) else {
+            return;
+        };
         let cookies: Vec<RawCookie<'static>> = headers
             .filter_map(|header| header.to_str().ok())
             .filter_map(|header| RawCookie::parse(header.to_owned()).ok())
@@ -87,34 +101,57 @@ impl reqwest::cookie::CookieStore for Jar {
             return;
         }
         let mut store = self.store.lock().unwrap();
-        store.store_response_cookies(cookies.into_iter(), url);
+        store.store_response_cookies(cookies.into_iter(), &url);
         self.save(&store);
     }
 
-    fn cookies(&self, url: &Url) -> Option<HeaderValue> {
+    /// The cookies for `uri` as Firefox sends them: one `Cookie` header with
+    /// them all over HTTP/1.1, and one field a cookie over HTTP/2, where
+    /// Firefox "crumbles" the header (`Http2Compression.cpp`).
+    fn cookies(&self, uri: &Uri, version: Version) -> Cookies {
+        let Some(url) = url_of(uri) else {
+            return Cookies::Empty;
+        };
         let store = self.store.lock().unwrap();
-        let cookies = store
-            .get_request_values(url)
+        let pairs: Vec<String> = store
+            .get_request_values(&url)
             .map(|(name, value)| format!("{name}={value}"))
-            .collect::<Vec<_>>()
-            .join("; ");
-        if cookies.is_empty() {
-            return None;
+            .collect();
+        if pairs.is_empty() {
+            return Cookies::Empty;
         }
-        HeaderValue::from_str(&cookies).ok()
+        if version == Version::HTTP_2 {
+            let crumbs: Vec<HeaderValue> = pairs
+                .iter()
+                .filter_map(|pair| HeaderValue::from_str(pair).ok())
+                .collect();
+            return Cookies::Uncompressed(crumbs);
+        }
+        HeaderValue::from_str(&pairs.join("; ")).map_or(Cookies::Empty, Cookies::Compressed)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use reqwest::cookie::CookieStore as _;
-
     use super::*;
+
+    fn uri(address: &str) -> Uri {
+        address.parse().unwrap()
+    }
+
+    /// The cookies as one HTTP/1.1 header, or none.
+    fn sent(jar: &Jar, address: &str) -> Option<String> {
+        match jar.cookies(&uri(address), Version::HTTP_11) {
+            Cookies::Compressed(value) => Some(value.to_str().unwrap().to_owned()),
+            Cookies::Empty => None,
+            _ => panic!("HTTP/1.1 takes one header"),
+        }
+    }
 
     #[test]
     fn sends_back_what_the_server_set_where_it_applies() {
         let jar = Jar::default();
-        let api = Url::parse("https://discord.com/api/v9/users/@me").unwrap();
+        let api = "https://discord.com/api/v9/users/@me";
         jar.set_cookies(
             &mut [
                 HeaderValue::from_static(
@@ -123,21 +160,19 @@ mod tests {
                 HeaderValue::from_static("__cf_bm=bot; Path=/; Domain=discord.com; Secure"),
             ]
             .iter(),
-            &api,
+            &uri(api),
         );
-        let sent = jar.cookies(&api).unwrap();
-        let sent = sent.to_str().unwrap();
-        assert!(sent.contains("__dcfduid=device"), "{sent}");
-        assert!(sent.contains("__cf_bm=bot"), "{sent}");
+        let sent_here = sent(&jar, api).unwrap();
+        assert!(sent_here.contains("__dcfduid=device"), "{sent_here}");
+        assert!(sent_here.contains("__cf_bm=bot"), "{sent_here}");
+        // Over HTTP/2, a field each.
+        let Cookies::Uncompressed(crumbs) = jar.cookies(&uri(api), Version::HTTP_2) else {
+            panic!("HTTP/2 crumbles them");
+        };
+        assert_eq!(crumbs.len(), 2);
         // Not to other sites, nor over plain HTTP.
-        assert!(
-            jar.cookies(&Url::parse("https://example.com/").unwrap())
-                .is_none()
-        );
-        assert!(
-            jar.cookies(&Url::parse("http://discord.com/api/v9").unwrap())
-                .is_none()
-        );
+        assert_eq!(sent(&jar, "https://example.com/"), None);
+        assert_eq!(sent(&jar, "http://discord.com/api/v9"), None);
     }
 
     #[test]
@@ -153,7 +188,7 @@ mod tests {
                 HeaderValue::from_static("session=gone; Path=/; Secure"),
             ]
             .iter(),
-            &api,
+            &uri(api.as_str()),
         );
         let saved = std::fs::read_to_string(&file).unwrap();
         let store =

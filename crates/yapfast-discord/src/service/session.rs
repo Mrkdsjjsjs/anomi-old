@@ -146,17 +146,32 @@ pub(super) async fn run(
             snapshot.status = Status::Offline(tr!("Can't reach Discord. Reconnecting...").into());
             snapshot.voice.clear();
         });
-        let wait = tokio::time::sleep(reconnects.wait(&error, up));
-        tokio::pin!(wait);
-        loop {
-            tokio::select! {
-                () = &mut wait => break,
-                request = requests.recv() => match request {
-                    // Nothing to leave or close while disconnected.
-                    Some(Request::ShutDown(_)) | None => return,
-                    Some(request) => refuse(request, &mut shared),
-                },
-            }
+        let wait = reconnects.wait(&error, up);
+        if !wait_to_reconnect(wait, &mut requests, &mut shared).await {
+            return;
+        }
+    }
+}
+
+/// Waits `wait` before connecting again, answering requests meanwhile;
+/// [`Request::Reconnect`] ends the wait at once. False when Yapfast quits
+/// or drops the handles.
+async fn wait_to_reconnect(
+    wait: Duration,
+    requests: &mut mpsc::UnboundedReceiver<Request>,
+    shared: &mut Shared,
+) -> bool {
+    let wait = tokio::time::sleep(wait);
+    tokio::pin!(wait);
+    loop {
+        tokio::select! {
+            () = &mut wait => return true,
+            request = requests.recv() => match request {
+                // Nothing to leave or close while disconnected.
+                Some(Request::ShutDown(_)) | None => return false,
+                Some(Request::Reconnect) => return true,
+                Some(request) => refuse(request, shared),
+            },
         }
     }
 }
@@ -648,6 +663,8 @@ impl Session<'_> {
             }
             // `run` takes it, as it ends the session.
             Request::ShutDown(_) => Ok(()),
+            // Connected already.
+            Request::Reconnect => Ok(()),
         }
     }
 
@@ -1070,5 +1087,57 @@ mod tests {
         timeout(WAIT, accounts.changed()).await.unwrap().unwrap();
 
         session.abort();
+    }
+
+    /// A session's state with nothing connected to it.
+    fn disconnected() -> Shared {
+        let (snapshots, _) = watch::channel(Arc::new(Snapshot::default()));
+        let (live, _) = broadcast::channel(16);
+        let names = Arc::new(RwLock::new(Names::default()));
+        let (_, activity) = watch::channel(None);
+        let (show_game, _) = watch::channel(true);
+        let (_, music) = watch::channel(None);
+        let (spotify, _) = watch::channel(Accounts::default());
+        Shared {
+            snapshots,
+            live: live.clone(),
+            names: names.clone(),
+            notes: super::super::Notes::default(),
+            api: Arc::new(Api::anonymous().unwrap()),
+            lists: MemberLists::new(vec![], live, names, Presence::Online),
+            presence: json!({"status": "online", "since": 0, "activities": [], "afk": false}),
+            activity,
+            show_game,
+            music,
+            spotify,
+            inactive: None,
+            viewing: None,
+            beside: None,
+        }
+    }
+
+    /// The Reconnect button ends the wait after a lost connection at once;
+    /// what else is asked meanwhile is answered as before, and quitting
+    /// still ends the session.
+    #[tokio::test]
+    async fn reconnecting_ends_the_wait_at_once() {
+        let mut shared = disconnected();
+        let (requests, mut received) = mpsc::unbounded_channel();
+        let hour = Duration::from_secs(3_600);
+        {
+            let waiting = wait_to_reconnect(hour, &mut received, &mut shared);
+            tokio::pin!(waiting);
+            requests.send(Request::Inactive(Some(1), true)).unwrap();
+            let still = timeout(Duration::from_millis(50), &mut waiting).await;
+            assert!(still.is_err(), "the wait ended without being asked");
+            requests.send(Request::Reconnect).unwrap();
+            assert!(timeout(WAIT, &mut waiting).await.unwrap());
+        }
+        assert_eq!(shared.inactive, Some((1, true)));
+
+        let (done, _gone) = tokio::sync::oneshot::channel();
+        requests.send(Request::ShutDown(done)).unwrap();
+        let waited = wait_to_reconnect(hour, &mut received, &mut shared);
+        assert!(!timeout(WAIT, waited).await.unwrap());
     }
 }

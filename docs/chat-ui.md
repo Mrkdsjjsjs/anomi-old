@@ -4,9 +4,8 @@ A refined presentation of these widgets is the default; see
 [Yapfast UI](yapfast-ui.md) for its metrics and the switch back to
 the earlier look.
 
-The chat window for Matrix and Discord, laid out after Discord's client.
-Matrix messages are sent through the SDK's Markdown feature, and Slint's
-Markdown draws formatted text. `pulldown-cmark` in `yapfast-core` reads
+The chat window for Discord, laid out after Discord's client. Discord takes
+messages as Markdown, and Slint's Markdown draws formatted text. `pulldown-cmark` in `yapfast-core` reads
 Markdown for links, spoilers, reply snippets and notification text
 (`links.rs`, `spoiler.rs`, `chat.rs`). `image` decodes pictures within bounds,
 and `rfd` opens native file dialogs.
@@ -23,21 +22,18 @@ The preview has two sample servers, DMs and a group DM. The upper-left button
 opens DMs; buttons beneath it select servers. The sidebar shows only that server's
 channels, or only DMs when the DM button is selected. Filter the current list and
 send messages locally. The gear in the account panel opens settings, where "Back
-to sign in" opens the real account form. Samples and entered messages disappear on leaving
-the preview. They never connect to Matrix.
+to sign in" opens the sign-in screen. Samples and entered messages disappear on leaving
+the preview. They never connect to Discord.
 
-Launch without `--preview` for password sign-in and automatic restoration.
-`--data-dir PATH` selects an isolated session directory. Passwords and recovery
-keys are masked and cleared after submission. The sign-in form scrolls when
-errors make it taller than the minimum window. SSO and OAuth are still pending.
+Launch without `--preview` to link Discord, or to connect with the account
+linked on this device. `--data-dir PATH` selects an isolated session
+directory. The sign-in screen scrolls when it is taller than the window.
 
 ## Implemented behavior
 
-- Show existing DMs behind the upper-left button and joined Matrix Spaces as
-  servers below it. Scope the channel list to the selected server, with a name
+- Show existing DMs behind the upper-left button and the account's servers
+  below it. Scope the channel list to the selected server, with a name
   filter that resets when switching servers or DMs.
-- Flatten channels in joined subspaces, deduplicate shared links, and tolerate
-  cyclic Space relationships. A shared channel can appear in multiple servers.
   Removed child links update the channel list during sync.
 - Ctrl+K opens the quick switcher, "Where would you like to go?", as in
   Discord, wherever the focus is, but not over the settings or a dialog;
@@ -70,10 +66,8 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
 - Restore each server's last selected channel and the last selected DM. Yapfast
   keeps each server's channel in `layout.json`, so after a restart a server
   opens its last channel; a server opened for the first time shows its top one.
-- List the joined members of the open text channel or group DM on the right,
-  grouped under ADMINS, MODERATORS and MEMBERS by Matrix power level (100 and
-  50), each by name. The first view fetches the full list from the homeserver,
-  since sync loads members lazily, and membership changes refresh it. Voice
+- List the members of the open text channel or group DM on the right, as
+  Discord groups them; see [Discord's people](discord/people.md). Voice
   channels and one-to-one DMs have no member list; a one-to-one DM shows the
   other person's profile there instead, which the person icon in its header
   hides or shows. Dragging the list's edge makes it 200 to 480px wide,
@@ -92,8 +86,8 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   the changes from that time together, so a busy server's list draws at most
   twice a second.
 - Read live text messages. Earlier history loads once the timeline has
-  stayed within a screen of its top for 50 ms, a page at a time (30 events
-  for Matrix, 50 messages for Discord), until the conversation's first
+  stayed within a screen of its top for 50 ms, a page at a time (50
+  messages), until the conversation's first
   message, which "This is the start of #general." marks. A room opening
   shows its list at the top for a moment, before it moves to the newest
   message or the "New" divider, and that moment loads nothing. While a page is on its way a pill above
@@ -105,8 +99,7 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
 - Jump to a message from a reply's quote, a pin or a search result. One
   that's loaded scrolls a third of the way down and is highlighted for a
   moment. Otherwise the messages around it load in place of the timeline,
-  as a window of older messages: Discord's 50 around it, Matrix's 30 around
-  it through the SDK's event-focused timeline (`/context`). A bar over its
+  as a window of older messages, the 50 around it. A bar over its
   end says "You're viewing older messages" with "Jump to present", and
   scrolling near its end loads newer pages, with "Loading newer messages..."
   under the last one, as scrolling up loads earlier ones. New messages don't
@@ -115,9 +108,6 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   newest again, as Yapfast kept them, and leaving the conversation lets the
   window go. A jump to a conversation that isn't open opens it at the
   message.
-- Recover encryption keys or recheck verification performed in another client.
-- Send only from a cross-signed device into a joined encrypted room. Existing
-  plaintext rooms are read-only.
 - Write Markdown. Messages with formatting render bold, italic, strikethrough,
   inline code, lists and links through Slint's Markdown, and headings, subtext,
   quotes and fenced code as blocks that `crates/yapfast-core/src/blocks.rs`
@@ -138,10 +128,9 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   Clicking either stops the view following the newest message, so the
   message's top stays where it is as it grows, and Show less on a message
   whose top is above the view brings its top back into view.
-- Start a DM from the pen in the DM list's header: type a name to search the
-  homeserver's user directory, or a full Matrix id. Yapfast opens the DM you
-  already have with them, or starts an encrypted one and opens it once sync
-  lists it.
+- Start a DM from the pen in the DM list's header: type a name to find
+  people you know on Discord. Yapfast opens the DM you already have with
+  them, or starts one and opens it once Discord lists it.
 - Use the keyboard for messages: Up in an empty composer edits your last
   message; Alt+Up moves into the messages, where arrows step, Enter opens the
   menu, + reacts, R replies, E edits, Delete deletes, C copies, F forwards,
@@ -154,7 +143,7 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   ringing call or the call in full screen is open, nor on the friends list or a
   call, nor with Ctrl, Alt or Super held, nor for a push-to-talk key while
   unmuted in a call. Stepping through the messages, only letters and digits go.
-- Clicking a mention, a link to a Matrix user, opens their profile card.
+- Clicking a mention opens their profile card.
 - Emoji in message text are drawn by Twemoji's picture of them, as the picker's
   are, in a colour bitmap font made of them when Yapfast is built
   (`src/emoji_text.rs`); see [Discord](discord/messages.md) for
@@ -186,8 +175,8 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   server's emoji, the server it is from, with how many of its members are
   online and whether Discover lists it, whose icon and name open that server.
 - Mention someone by typing `@` and picking from the room's members. The
-  message links to them (`[Name](https://matrix.to/#/@user:server)`) and lists
-  them in `m.mentions`, so their client notifies them. Who else is typing
+  message mentions them as Discord's client does, so they're notified. Who
+  else is typing
   shows just above the composer, gently pulsing, after three dots under the
   avatars that rise in turn, and Yapfast tells the room while you type unless a
   setting turns it off.
@@ -385,15 +374,10 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   its end. Hovering your own row offers to remove your reaction; a Discord
   moderator, with Manage Messages, may remove anyone's. Yapfast keeps the last
   32 tooltips' names while their counts stay, and the window's people only
-  while it's open. Matrix rooms answer from the timeline, which holds every
-  reaction's senders.
+  while it's open.
 - Forward a sent message from a dialog with a search field: choose up to five
   conversations on the message's own network, add a message if you like, and
-  send; with one chosen, it opens. On Matrix, Yapfast forwards only into
-  encrypted conversations and sends the message's current content as a new
-  message, without its reply quote. An encrypted attachment keeps its uploaded
-  file, and its key travels in the new encrypted event. On Discord it forwards
-  as Discord's client does ([Forwarding](discord/messages.md#forwarding)). The message
+  send; with one chosen, it opens. It forwards as Discord's client does ([Forwarding](discord/messages.md#forwarding)). The message
   added goes after the forward as a message of its own. If a forward fails
   somewhere, the dialog opens again with those conversations chosen and why.
   Delete asks for confirmation, then
@@ -452,12 +436,10 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   composer opens Discord's menu for the field, without its spelling
   suggestions: Cut and Copy while text is selected, Paste, which pastes as
   Ctrl+V does, and Select All, which Discord's lacks. A thread's composer
-  has the menu too, and pastes text only, as it holds no files. In Matrix the SDK encrypts
-  and uploads each file through its send queue, up to 50 MB, then sends the
-  text after them. Images show a decoded preview of up to
+  has the menu too, and pastes text only, as it holds no files. Images show a decoded preview of up to
   360×270, decoded with dimension and memory limits, with a save button over the
   picture on hover. Other files show a card with a save button. Saving writes the
-  decrypted file where you choose. A Discord message with several images shows
+  file where you choose. A Discord message with several images shows
   them as square tiles, two to a row; with three, the first is a tall tile
   beside the other two, and with five or more of an odd number the first
   takes a row of its own. Where the timeline is narrower than a
@@ -469,20 +451,10 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   the message's other images, a counter shows which one it is, and Escape, the
   close button or a click outside the image closes it. It can save the image
   too.
-- Send through the SDK's persistent send queue. A message appears at once,
-  faint until the server has it, with nothing under it; one with files says
-  "Sending..." with Cancel while they upload. After a connection problem it
-  shows "Not sent yet" and goes out by itself when sync recovers. Sync uses
-  the SDK's offline mode, which keeps probing the homeserver. A refused
-  message shows "Not sent" with Retry. Queued messages can be cancelled, and
-  they survive closing Yapfast.
-- Save each room's draft in the encrypted session store, so drafts survive
-  restarts. Sending clears the saved draft.
 - Show unread channels in bold with a short pill at the sidebar edge, and the
   same pill beside servers and the DM button that contain them. Mentions show a
   red count. A conversation is read once its newest message is in view with
-  the window in front, as Discord's client reads one: a Discord channel
-  then, a Matrix room as its timeline loads. A conversation opened with
+  the window in front, as Discord's client reads one. A conversation opened with
   unread messages opens at a marigold
   "New" divider above the first one, sitting at the top of the view rather
   than at the newest message, and the author's name shows again below it. The
@@ -494,9 +466,7 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   an arrow toward it, and clicking it scrolls back to the divider. A Discord
   channel places it by message order; when every loaded message is unread,
   it opens on a window of the messages around the last read one, where the
-  bar counts those loaded with a plus ("50+ new messages"). A Matrix room
-  places it after the event its read receipt is on, once that event is in
-  the loaded timeline.
+  bar counts those loaded with a plus ("50+ new messages").
 - Highlight messages that call on the user with a faint marigold tint and a
   marigold edge on the left, as Discord does: a mention of them, of a Discord
   role they have, or @everyone or @here where those reach them, always, and a
@@ -505,13 +475,11 @@ errors make it taller than the minimum window. SSO and OAuth are still pending.
   nothing unread counts from its newest message, and the thread beside a
   channel from its own last read message. A reply that pings only lists
   them as mentioned, so it counts as a mention only when its text names
-  them. Matrix's push rules decide which messages mention the user; a reply
-  stays a mention when its text has their user ID or a link to it, or
-  @room. Their own messages are never highlighted. Yapfast counts unread messages on this device; for a room that isn't open,
-  sync often delivers only the newest event, so Yapfast shows that something is
-  unread rather than how much.
-- Show sync status in the account panel. Reconnect appears there when offline;
-  sign out (which retains encrypted stores) is in settings.
+  them. Their own messages are never highlighted.
+- Show the connection's status in the account panel. Reconnect appears there
+  while Discord is disconnected, and connects at once rather than when the
+  wait after the lost connection ends; sign out, which unlinks Discord on
+  this device, is in settings.
 
 ## Layout and look
 
@@ -670,8 +638,7 @@ The window follows Discord's arrangement:
   the same for the category. A muted DM or Discord channel shows faint, and a
   Discord server set to hide muted
   channels leaves them out, but for the open one and those that mention you.
-  Removing a friend and blocking ask first. Matrix links go through
-  matrix.to. Arrow keys, Home and End move through the menu, Right opens a
+  Removing a friend and blocking ask first. Arrow keys, Home and End move through the menu, Right opens a
   submenu and Left leaves it, Enter chooses, and Escape closes it.
 - Inviting opens a dialog with a link Discord made at once, lasting 7 days
   and working any number of times, a button that copies it, and a line on
@@ -781,31 +748,17 @@ destructive actions, and green only for live voice. Avatars get one of eight
 tints from the person's name.
 
 Network operations run on the existing two-worker Tokio runtime. The UI
-receives SDK events, and the message list virtualizes its rows. Rows keep their
+receives the backend's events, and the message list virtualizes its rows. Rows keep their
 place by message id: a change rebuilds only the rows of the messages it
 changed, and older messages go in above the rows shown, which stay where they
-are on screen. There is no UI polling loop. On Matrix, only joined Spaces and
-their joined channels appear. DMs stay in the DM list even if linked to a
-Space. Matrix standalone rooms outside Spaces, channel discovery, room
-creation, threads, video and audio playback, and deleting other people's
-messages remain later work. Closing the last window exits Yapfast.
+are on screen. There is no UI polling loop.
 
 ## Validation
 
-The Matrix chat integration tests in `crates/yapfast-core/src/matrix_chat.rs`
-create disposable accounts and cover restoration, encryption and its gates,
-Spaces, Markdown, replies, reactions, edits, deletion, attachments, drafts,
-offline sending across a restart, and messages missed while a room was
-closed. Run them after `scripts/test-stack up`:
-
-```sh
-nix develop path:./nix --command cargo test --locked --profile fast -p
-yapfast-core matrix_chat::tests -- --ignored --test-threads=1
-```
-
-To check the window by hand, see [Seeing the app](building.md#seeing-the-app).
-The native file dialogs need an XDG portal, which `scripts/ui-session` doesn't
-run, so Attach and Save are checked only through the integration test.
+Discord's service tests run against the fake server
+(`scripts/test-fake-discord`); see [Discord](discord/README.md). To check the
+window by hand, see [Seeing the app](building.md#seeing-the-app). The native
+file dialogs need an XDG portal, which `scripts/ui-session` doesn't run.
 
 Every emoji is Twemoji's, on every platform, as Discord's client draws them:
 the font `build.rs` makes of Twemoji's pictures is registered as "Yapfast

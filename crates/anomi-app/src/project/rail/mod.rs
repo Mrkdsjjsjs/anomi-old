@@ -29,9 +29,9 @@ use super::rows;
 use crate::layout::Layout;
 use crate::pictures::{self, Requests};
 
-/// Discord's marks show only where Matrix is built in beside it, as the
-/// Slint app's `Badges.discord`.
-pub(super) const MARKS: bool = cfg!(feature = "matrix");
+/// Discord's marks, as the Slint app's `Badges.discord`: everything here is
+/// Discord's, so nothing carries one.
+pub(super) const MARKS: bool = false;
 
 /// What the rail was built from, and the ids of the rows last in view.
 #[derive(Default)]

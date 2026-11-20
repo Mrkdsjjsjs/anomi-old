@@ -1,9 +1,8 @@
 //! Signing in, linking Discord and the two-factor prompt
-//! (`src/ui/callbacks.rs:1308`, `:2685`, `:2704`; the prompt's
+//! (`src/ui/callbacks.rs:1308`; the prompt's
 //! `src/ui/server_settings.rs:1682`). What is typed stays in `vm.sign_in`
-//! and the prompt's code in the core; a sign-in, a recovery or a token is
-//! handed to the core from there, and the password and the recovery key
-//! go as soon as their sign-in starts, as the Slint window emptied them.
+//! and the prompt's code in the core; a token is handed to the core from
+//! there.
 //!
 //! Linking from the settings' Discord page shows its later phases over the
 //! settings (`Layer::Link`, which `project::sign_in` opens while linking
@@ -27,27 +26,9 @@ pub fn handle(app: &mut App, intent: sign_in::Intent) -> Task<Message> {
     use sign_in::Intent;
     let sign_in = &mut app.vm.sign_in;
     match intent {
-        Intent::Homeserver(text) => sign_in.homeserver = text,
-        Intent::Username(text) => sign_in.username = text,
         // A secret's last text goes as the next takes its place.
-        Intent::Password(text) => replace(&mut sign_in.password, text),
         Intent::Token(text) => replace(&mut sign_in.token, text),
-        Intent::Recovery(text) => replace(&mut sign_in.verify.recovery, text),
-        Intent::Login => {
-            let action = Action::Login {
-                homeserver: sign_in.homeserver.clone(),
-                username: sign_in.username.clone(),
-                password: sign_in.password.clone(),
-            };
-            return started(app, action, |sign_in| &mut sign_in.password);
-        }
-        Intent::Recover => {
-            let action = Action::Recover(sign_in.verify.recovery.clone());
-            return started(app, action, |sign_in| &mut sign_in.verify.recovery);
-        }
-        Intent::Restore => return app.dispatch(Action::Restore),
         Intent::ExplorePreview => return app.dispatch(Action::Preview),
-        Intent::RefreshTrust => return app.dispatch(Action::RefreshTrust),
         Intent::LinkDiscord => return app.dispatch(Action::LinkDiscord),
         Intent::OpenToken => {
             sign_in.token_open = true;
@@ -72,21 +53,6 @@ pub fn handle(app: &mut App, intent: sign_in::Intent) -> Task<Message> {
 fn replace(secret: &mut String, mut text: String) {
     std::mem::swap(secret, &mut text);
     forget(&mut text);
-}
-
-/// Hands the core a sign-in made of what was typed, and lets go of the
-/// secret `typed` once it is on its way (`busy` turned on).
-fn started(
-    app: &mut App,
-    action: Action,
-    typed: fn(&mut sign_in::SignIn) -> &mut String,
-) -> Task<Message> {
-    let busy = app.core.state.busy;
-    let task = app.dispatch(action);
-    if !busy && app.core.state.busy {
-        forget(typed(&mut app.vm.sign_in));
-    }
-    task
 }
 
 /// The settings' Discord page's Link: the code shows over the settings.

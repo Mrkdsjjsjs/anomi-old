@@ -2,7 +2,7 @@
 name = "anomi-theme"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 description = "The iced interface's design system: the twelve palettes, sizes, type, motion, and the theme every widget styles itself from"

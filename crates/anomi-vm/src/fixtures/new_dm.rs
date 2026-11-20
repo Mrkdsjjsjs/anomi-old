@@ -40,23 +40,6 @@ pub fn found() -> NewDm {
     found
 }
 
-/// Someone from Matrix typed by id, beside a Discord friend.
-pub fn matrix() -> NewDm {
-    let mut found = found();
-    found.matrix = true;
-    found.query = "@bo".into();
-    // Both networks list people here, so Discord's friend carries its mark.
-    found.people[0].discord = true;
-    found.people.push(Person {
-        id: "@bo:example.org".into(),
-        name: "bo".into(),
-        detail: "@bo:example.org".into(),
-        avatar: avatar("B", 0x3a9357),
-        discord: false,
-    });
-    found
-}
-
 /// Nothing typed and no one listed: what to type.
 pub fn hint() -> NewDm {
     NewDm {

@@ -100,11 +100,8 @@ pub(super) fn build(
         String::new()
     } else if state.scoped_rooms().next().is_some() {
         tr!("No matching conversations.").to_owned()
-    } else if discord {
-        tr!("No channels in this server that you can see.").to_owned()
     } else {
-        tr!("No joined channels in this server. Join a channel in another Matrix client to see it here.")
-            .to_owned()
+        tr!("No channels in this server that you can see.").to_owned()
     };
     Channels {
         server: server.to_owned(),

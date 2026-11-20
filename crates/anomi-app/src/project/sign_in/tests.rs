@@ -73,23 +73,7 @@ fn the_screen_says_what_the_core_says() {
     app.core.state.busy = true;
     app.refresh();
     assert_eq!(app.vm.sign_in.notice, "No saved session.");
-    assert!(app.vm.sign_in.busy && app.vm.sign_in.verify.busy);
-    assert_eq!(app.vm.sign_in.matrix_build, cfg!(feature = "matrix"));
-}
-
-#[test]
-fn an_unverified_device_shows_the_banner_but_the_preview_never() {
-    let mut window = start("sign-in-verify", false);
-    let app = &mut window.app;
-    app.core.state.account = Some("@alice:example.org".into());
-    app.core.state.trusted = false;
-    app.refresh();
-    assert!(app.vm.sign_in.verify.unverified);
-    app.core.state.trusted = true;
-    app.refresh();
-    assert!(!app.vm.sign_in.verify.unverified);
-    let preview = start("sign-in-verify-preview", true);
-    assert!(!preview.app.vm.sign_in.verify.unverified);
+    assert!(app.vm.sign_in.busy);
 }
 
 #[test]

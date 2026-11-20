@@ -21,7 +21,7 @@ pub(super) fn show(core: &Application, layout: &Layout, composer: &mut Composer)
     let state = &core.state;
     let room = state.selected_room();
     let discord = room.is_some_and(|room| room.network == Network::Discord);
-    // An unverified Matrix device can type; the hint says why it can't send.
+    // A Discord room by what the account may do there; the preview's take text.
     let enabled = state.room_ready
         && !state.busy
         && state.shows_text()
@@ -99,9 +99,6 @@ pub(super) fn placeholder(state: &AppState) -> Cow<'_, str> {
 fn hint(state: &AppState, layout: &Layout) -> (Hint, Option<String>) {
     let room = state.selected_room();
     let discord = room.is_some_and(|room| room.network == Network::Discord);
-    // Without Matrix everything is Discord, so the encryption and key hints
-    // say nothing new; what stops sending still shows.
-    let discord_only = !cfg!(feature = "matrix");
     let timed_out = room
         .and_then(|room| room.timed_out_until)
         .filter(|_| discord)
@@ -124,34 +121,17 @@ fn hint(state: &AppState, layout: &Layout) -> (Hint, Option<String>) {
     let lock = room.is_some_and(|room| room.encrypted) || state.preview;
     let text: Cow<'_, str> = if room.is_none() {
         Cow::Borrowed(tr!("Choose a DM or server channel to write a message."))
-    } else if state.preview || no_permission {
+    } else if state.preview || no_permission || room.is_some_and(|room| room.request) {
+        // Everything is Discord, so the hint says only what stops sending.
         Cow::Borrowed("")
-    } else if room.is_some_and(|room| room.request) {
-        Cow::Borrowed(if discord_only {
-            ""
-        } else {
-            tr!("Discord · not end-to-end encrypted.")
-        })
     } else if let Some(timed_out) = timed_out {
         Cow::Owned(timed_out)
     } else if discord && shut {
         Cow::Borrowed(tr!("You can't send messages in this Discord channel."))
     } else if discord && !state.discord_online {
         Cow::Borrowed(tr!("Discord is disconnected. Yapfast is reconnecting."))
-    } else if discord_only {
-        Cow::Borrowed("")
-    } else if discord {
-        Cow::Borrowed(tr!(
-            "Discord · not end-to-end encrypted. Enter to send, Shift+Enter for a new line."
-        ))
-    } else if !state.trusted {
-        Cow::Borrowed(tr!("Sending is locked until this device is verified."))
-    } else if room.is_some_and(|room| room.encrypted) {
-        Cow::Borrowed(tr!(
-            "End-to-end encrypted. Enter to send, Shift+Enter for a new line."
-        ))
     } else {
-        Cow::Borrowed(tr!("Unencrypted room. Reading only in this build."))
+        Cow::Borrowed("")
     };
     let hint = Hint {
         text: text.into_owned(),

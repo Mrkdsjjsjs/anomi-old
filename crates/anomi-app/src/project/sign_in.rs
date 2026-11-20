@@ -1,22 +1,18 @@
 //! Signing in and linking Discord from the core's state: the sign-in
-//! screen, the verify banner, the linking dialog over the settings and the
-//! two-factor prompt ([`mfa`]). The Slint side: `show_workspace`
-//! (`src/ui/refresh.rs:960`, the link's phase, name, note and code) and
-//! the sign-in's focus (`:589`).
+//! screen, the linking dialog over the settings and the two-factor prompt
+//! ([`mfa`]). The Slint side: `show_workspace` (`src/ui/refresh.rs:960`,
+//! the link's phase, name, note and code).
 //!
-//! What was typed (the Matrix fields, the token, the recovery key) is the
-//! window's own, kept in `vm.sign_in` by `intent::sign_in`; this sets the
-//! rest, a handful of fields each compared before it is copied. The code
-//! is made once for each address the core hands over. A secret goes once
-//! it served: the token once the account is linked or the linking given
-//! up while signed in, the password and the recovery key as their sign-in
-//! starts (`intent::sign_in`); [`forget`] overwrites its bytes first.
+//! What was typed (the token) is the window's own, kept in `vm.sign_in` by
+//! `intent::sign_in`; this sets the rest, a handful of fields each compared
+//! before it is copied. The code is made once for each address the core
+//! hands over. The token goes once it served, once the account is linked
+//! or the linking given up while signed in; [`forget`] overwrites its
+//! bytes first.
 
 mod mfa;
 
 pub(crate) use mfa::method as mfa_method;
-
-use std::path::Path;
 
 use yapfast_core::application::{AppState, Application, DiscordLink};
 
@@ -24,19 +20,11 @@ use anomi_vm::Vm;
 use anomi_vm::shell::Layer;
 use anomi_vm::sign_in::{Code, Link, SignIn};
 
-/// A Matrix build signs in with a password; one without links Discord.
-const MATRIX: bool = cfg!(feature = "matrix");
-
 /// What the sign-in showed last.
 #[derive(Default)]
 pub struct Shown {
     /// The address the code shown carries.
     code: Option<String>,
-    /// The reset and the busy a saved session was looked for at.
-    restore: Option<(u64, bool)>,
-    /// The reset the sign-in screen showed at, for its first field to take
-    /// the keys as it comes back.
-    reset: Option<u64>,
     mfa: mfa::Shown,
 }
 
@@ -45,7 +33,6 @@ pub struct Shown {
 /// takes the keys, if one should now.
 pub(super) fn show(
     core: &Application,
-    root: &Path,
     vm: &mut Vm,
     shown: &mut Shown,
     focus: &mut Option<&'static str>,
@@ -57,7 +44,6 @@ pub(super) fn show(
         yapfast_lang::PRODUCT.clone_into(&mut sign_in.product);
     }
     sign_in.busy = state.busy;
-    sign_in.matrix_build = MATRIX;
     let notice = state.notice.as_deref().unwrap_or_default();
     if sign_in.notice != notice {
         notice.clone_into(&mut sign_in.notice);
@@ -70,15 +56,6 @@ pub(super) fn show(
         forget(&mut sign_in.token);
         sign_in.token_open = false;
     }
-    // Only the Matrix form offers it, and finding out reads the disk.
-    let looked = (state.reset_version, state.busy);
-    if MATRIX && signed_out && shown.restore != Some(looked) {
-        shown.restore = Some(looked);
-        sign_in.restore_available = yapfast_core::chat::can_restore(root);
-    }
-    // `!root.preview && !root.trusted` (`ui/yapfast.slint:3464`).
-    sign_in.verify.unverified = !state.preview && !state.trusted;
-    sign_in.verify.busy = state.busy;
     // Linking while signed in started on the settings' Discord page.
     let over_settings = !signed_out && state.discord_link.is_some();
     if over_settings != vm.shell.is_open(Layer::Link) {
@@ -86,14 +63,6 @@ pub(super) fn show(
             vm.shell.open(Layer::Link);
         } else {
             vm.shell.close(Layer::Link);
-        }
-    }
-    // Back on the sign-in screen with no account, Matrix's ID takes the
-    // keys (`focus-sign-in`).
-    if signed_out && shown.reset != Some(state.reset_version) {
-        shown.reset = Some(state.reset_version);
-        if MATRIX {
-            *focus = Some(anomi_screens::sign_in::USERNAME);
         }
     }
     mfa::show(

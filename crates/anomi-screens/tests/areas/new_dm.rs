@@ -91,14 +91,7 @@ fn the_note_shows_under_the_rows_or_alone() {
 }
 
 #[test]
-fn the_placeholder_says_matrix_ids_may_be_typed() {
-    let with_matrix = NewDm {
-        matrix: true,
-        ..NewDm::default()
-    };
-    let mut ui = simulate(&with_matrix);
-    assert!(ui.find("Find a friend, or type a Matrix id").is_ok());
-    let plain = NewDm::default();
-    let mut ui = simulate(&plain);
+fn the_placeholder_asks_for_a_friend() {
+    let mut ui = simulate(&NewDm::default());
     assert!(ui.find("Find a friend").is_ok());
 }

@@ -165,9 +165,8 @@ fn card(state: &AppState, key: &Key, account: &mut Account) {
     account.preview = key.preview;
     account.online = key.online;
     account.busy = key.busy;
-    // Without Matrix, the dot is the Discord status; the preview's is the
-    // sync's own.
-    account.presence = if cfg!(feature = "matrix") || key.preview {
+    // The dot is the Discord status; the preview has none.
+    account.presence = if key.preview {
         Presence::None
     } else if !key.discord_online {
         Presence::Offline

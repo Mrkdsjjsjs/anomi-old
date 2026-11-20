@@ -303,15 +303,7 @@ impl App {
     pub fn show(&mut self, reach: Reach) {
         if !self.hidden {
             let (vm, shown, pictures) = (&mut self.vm, &mut self.shown, &mut self.pictures);
-            project::refresh(
-                &self.core,
-                &self.root,
-                &self.layout,
-                vm,
-                shown,
-                pictures,
-                reach,
-            );
+            project::refresh(&self.core, &self.layout, vm, shown, pictures, reach);
         }
         if reach.touches(Reach::STATE) {
             layout::carry::follow(&mut self.layout, &self.core);

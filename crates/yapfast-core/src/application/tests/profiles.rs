@@ -150,15 +150,13 @@ fn decorations_and_nameplates_reach_profiles_and_the_account() {
         (style.font, style.effect, style.colors()),
         (4, 3, &[0x00ff00][..])
     );
-    // Without Matrix the account is Discord's, and its card has both.
-    if cfg!(not(feature = "matrix")) {
-        assert_eq!(app.state.account_decoration.as_deref(), Some("mine.png"));
-        let plate = app.state.account_nameplate.as_ref().unwrap();
-        assert_eq!(
-            (&*plate.picture, plate.colors),
-            ("plate.png", Some([0x730bc8, 0x972fed]))
-        );
-    }
+    // The account is Discord's, and its card has both.
+    assert_eq!(app.state.account_decoration.as_deref(), Some("mine.png"));
+    let plate = app.state.account_nameplate.as_ref().unwrap();
+    assert_eq!(
+        (&*plate.picture, plate.colors),
+        ("plate.png", Some([0x730bc8, 0x972fed]))
+    );
 }
 
 #[test]
@@ -234,10 +232,8 @@ fn profile_switches_that_are_off_ask_for_nothing() {
         "the effect and frame are asked about"
     );
     assert!(app.requested_pictures.contains("ring.png"));
-    if cfg!(not(feature = "matrix")) {
-        assert!(app.requested_pictures.contains("mine.png"));
-        assert!(app.requested_pictures.contains("plate.png"));
-    }
+    assert!(app.requested_pictures.contains("mine.png"));
+    assert!(app.requested_pictures.contains("plate.png"));
     // Effects alone off asks for no effect, and still for decorations.
     let (app, effect) = open(Cosmetics {
         effects: false,

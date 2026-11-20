@@ -14,25 +14,12 @@ use crate::kit::switch;
 /// Between the switches (`spacing: 16px`).
 const SPACING: f32 = 16.0;
 
-/// What decides which messages notify, by the networks in use.
-fn description(page: &Notifications) -> &'static str {
-    match (page.matrix, page.discord) {
-        (true, true) => tr!(
-            "For new messages while Yapfast isn't in front. Each Discord server's notification settings and your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation."
-        ),
-        (true, false) => tr!(
-            "For new messages while Yapfast isn't in front. Your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation."
-        ),
-        _ => tr!(
-            "For new messages while Yapfast isn't in front. Each Discord server's notification settings decide which: usually DMs and mentions. Clicking one opens the conversation."
-        ),
-    }
-}
-
 pub fn view(page: &Notifications, motion: Motion) -> impl View<Intent> + '_ {
     column![
         switch(tr!("Show desktop notifications"), page.notifications, motion)
-            .description(description(page))
+            .description(tr!(
+                "For new messages while Yapfast isn't in front. Each Discord server's notification settings decide which: usually DMs and mentions. Clicking one opens the conversation."
+            ))
             .on_toggle(Intent::Notifications)
             .view(),
         switch(tr!("Show what messages say"), page.text, motion)
@@ -54,17 +41,16 @@ pub fn view(page: &Notifications, motion: Motion) -> impl View<Intent> + '_ {
 }
 
 /// Its shots for `anomi-shots`: `settings/notifications.png` as the Slint app
-/// showed it, with the first switch off and with both networks in use.
+/// showed it, and with the first switch off.
 #[cfg(feature = "shots")]
 pub fn shots() -> Vec<crate::shots::Shot> {
-    use anomi_vm::fixtures::settings::notifications::{both, off, page};
+    use anomi_vm::fixtures::settings::notifications::{off, page};
 
     use crate::shots::{GOLDEN, Shot};
 
     [
         ("notifications", page as fn() -> anomi_vm::Vm),
         ("notifications_off", off),
-        ("notifications_both", both),
     ]
     .into_iter()
     .map(|(name, vm)| Shot {

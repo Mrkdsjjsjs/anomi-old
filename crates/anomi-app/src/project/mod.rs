@@ -196,7 +196,6 @@ impl Shown {
 /// [`Reach::STATE`].
 pub fn refresh(
     core: &Application,
-    root: &std::path::Path,
     layout: &Layout,
     vm: &mut Vm,
     shown: &mut Shown,
@@ -209,7 +208,7 @@ pub fn refresh(
         shell::show(state, layout, vm);
         crate::platform::window::show_chrome(state, layout, vm);
         sidebar::show_browse(state, &mut vm.browse, &mut shown.browse);
-        sign_in::show(core, root, vm, &mut shown.sign_in, &mut shown.focus);
+        sign_in::show(core, vm, &mut shown.sign_in, &mut shown.focus);
     } else if reach.touches(R::SETTINGS) {
         // A keystroke in the two-factor prompt.
         sign_in::show_mfa(core, vm, &mut shown.sign_in, &mut shown.focus);

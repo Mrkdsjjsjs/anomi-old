@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Formatting, doc links, Clippy, tests and a smoke run of the default build,
-# Discord on the desktop; --matrix adds the builds with Matrix.
-# Usage: scripts/check [--fast] [--matrix]
+# Discord on the desktop.
+# Usage: scripts/check [--fast]
 # --fast builds with the `fast` profile, which local work uses. Each step
 # prints `=== step` and `rc=N` when it ends; its full output is in
 # target/check/. The script exits non-zero when any step failed, after running
@@ -16,12 +16,10 @@ fi
 
 profile=()
 profile_dir=debug
-matrix=
 for argument in "$@"; do
   case $argument in
     --fast) profile=(--profile fast) profile_dir=fast ;;
-    --matrix) matrix=1 ;;
-    *) echo "usage: scripts/check [--fast] [--matrix]" >&2; exit 2 ;;
+    *) echo "usage: scripts/check [--fast]" >&2; exit 2 ;;
   esac
 done
 
@@ -50,13 +48,10 @@ run() {
 }
 
 clippy=(cargo clippy --locked "${profile[@]}" --all-targets)
-# feature-union is for the Matrix steps below; with it, the default build would
-# resolve as the full one and compile Slint apart from `cargo build`. The
-# iced interface's crates have their own script, scripts/check-iced: beside
-# the Slint app they would resolve its dependencies apart from `cargo build`
-# too.
-iced=(--exclude 'anomi-*')
-workspace=(--workspace --exclude feature-union "${iced[@]}")
+# The iced interface's crates have their own script, scripts/check-iced:
+# beside the Slint app they would resolve its dependencies apart from
+# `cargo build`.
+workspace=(--workspace --exclude 'anomi-*')
 steps=(fmt doc-links clippy test build smoke)
 
 run fmt cargo fmt --all -- --check
@@ -74,28 +69,6 @@ if [[ "$(cat "$logs/build.rc")" == 0 ]]; then
   run smoke "target/$profile_dir/yapfast" --smoke-test
 else
   echo "=== smoke: skipped, as the build failed"
-fi
-
-# The builds with Matrix: Matrix beside Discord, with its tests; Matrix
-# alone, in the desktop and in the shared core with its tests; and the
-# headless build. With feature-union, the crates below Slint resolve the same
-# in the first two, so the second reuses the first's check of the UI crate
-# instead of compiling its own; Clippy uplifts no binary, so they can share
-# target/<profile>/. They run after the steps above, not beside them: a
-# compile of the UI crate takes several GiB, and two or three at once ran the
-# machine out of memory.
-if [[ $matrix ]]; then
-  full=(--features yapfast/matrix,yapfast-core/matrix)
-  run clippy-matrix "${clippy[@]}" --workspace "${iced[@]}" "${full[@]}" -- -D warnings
-  run test-matrix cargo test --locked "${profile[@]}" --workspace "${iced[@]}" "${full[@]}"
-  run clippy-matrix-only "${clippy[@]}" -p yapfast -p yapfast-core -p feature-union \
-    --no-default-features --features yapfast/desktop,yapfast/matrix,yapfast-core/matrix -- -D warnings
-  # The headless build, in a target directory of its own, so its binary stays
-  # out of target/<profile>/.
-  export CARGO_TARGET_DIR=target/check-combinations
-  run clippy-headless "${clippy[@]}" -p yapfast --no-default-features --features matrix,discord -- -D warnings
-  run smoke-headless cargo run --locked "${profile[@]}" --no-default-features --features matrix,discord -- --smoke-test
-  steps+=(clippy-matrix test-matrix clippy-matrix-only clippy-headless smoke-headless)
 fi
 
 failed=()

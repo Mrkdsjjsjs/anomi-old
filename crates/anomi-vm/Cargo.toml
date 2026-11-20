@@ -2,7 +2,7 @@
 name = "anomi-vm"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 description = "What the iced interface's screens show and what they ask for: view-model types and intents, without the core"

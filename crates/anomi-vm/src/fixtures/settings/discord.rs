@@ -68,10 +68,9 @@ pub fn blocked(count: usize) -> Vec<Blocked> {
         .collect()
 }
 
-/// Seven blocked, five shown, a Matrix build's Unlink above.
+/// Seven blocked, five shown.
 pub fn discord_blocked() -> Discord {
     Discord {
-        matrix_build: true,
         blocked: blocked(7),
         ..discord()
     }

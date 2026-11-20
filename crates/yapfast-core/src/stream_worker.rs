@@ -12,8 +12,9 @@
 //! closing its input, ends the job. Frames go to the UI through [`crate::frames`].
 //!
 //! What Settings changes while workers run reaches each of them as a line
-//! too: the cores they may use ([`set_cpus`]) and where a stream encodes
-//! ([`set_encode_on`]).
+//! too: the cores they may use ([`set_cpus`]), where a stream encodes
+//! ([`set_encode_on`]) and whether its bitrate may pass Discord's
+//! documented cap ([`unlock_bitrate`]).
 
 use std::{
     io::{BufRead, BufReader, Write},
@@ -110,6 +111,10 @@ pub enum Job {
         /// Auto. See [`stream_connection::cap`].
         #[serde(default)]
         max_kbps: Option<u32>,
+        /// The limit may pass Discord's documented 9 Mbit/s, up to 50, as
+        /// Settings' "Unlocked bitrate" lets it ([`unlock_bitrate`]).
+        #[serde(default)]
+        bitrate_unlocked: bool,
     },
     /// Receives and decodes the stream at `server`, writing pictures that
     /// fit `width` by `height` to the frames file at `frames`.
@@ -339,6 +344,10 @@ pub enum Control {
     /// Encode where Settings now says, from the next frame on, keeping the
     /// stream: an encoder opens there as for a new quality.
     EncodeOn(EncodeOn),
+    /// Let the bitrate limit past Discord's documented 9 Mbit/s, or no
+    /// more, from the next frame on, keeping the stream
+    /// ([`unlock_bitrate`]).
+    BitrateUnlocked(bool),
     /// Run on these logical CPUs, or on every one Yapfast started with when
     /// none; see [`set_cpus`]. Any job takes it, from the line that brings
     /// it.
@@ -520,6 +529,7 @@ fn serve_on(
             effort,
             encode_on,
             max_kbps,
+            bitrate_unlocked,
         } => {
             let mut sink = Sink::new(
                 Writer::open(&frames)?,
@@ -530,6 +540,7 @@ fn serve_on(
                 encode_on,
                 max_kbps,
             );
+            sink.bitrate_unlocked = bitrate_unlocked;
             sink.sound = (source != Source::TestPattern).then_some(audio);
             report(Report::Ready);
             match source {
@@ -617,6 +628,9 @@ struct Sink {
     /// The most the stream sends, in kbit/s, within Discord's cap; none for
     /// Auto.
     max_kbps: Option<u32>,
+    /// The limit may pass Discord's documented cap, which
+    /// [`Control::BitrateUnlocked`] changes.
+    bitrate_unlocked: bool,
     /// Where Settings puts the encoder, which [`Control::EncodeOn`] changes.
     encode_on: EncodeOn,
     /// The graphics encoders to try for `encode_on`, best first, once read.
@@ -797,6 +811,7 @@ impl Sink {
             fps: fps.clamp(1, 60),
             effort,
             max_kbps,
+            bitrate_unlocked: false,
             encode_on,
             candidates: None,
             missing: false,
@@ -842,7 +857,7 @@ impl Sink {
         if let Some(server) = self.server.take() {
             let (offers, encoder) = self.offers(width, height)?;
             let sender = StreamSender::start(server, width, height, self.fps, offers)?;
-            sender.set_ceiling(self.max_kbps);
+            sender.set_ceiling(self.max_kbps, self.bitrate_unlocked);
             let sound = match self.sound {
                 Some(audio) if audio != StreamAudio::Off => {
                     share_sound(&sender, audio, &mut self.sound_failed)
@@ -864,14 +879,17 @@ impl Sink {
         let codec = (video.sender.codec().or(current)).unwrap_or(stream_connection::SEND_CODEC);
         // A new size, frame rate or effort (`Control::Quality`), another
         // place to encode (`Control::EncodeOn`, which closed the encoder),
-        // or cores that give x264 another count of threads
-        // (`Control::Cpus`), needs another encoder, which starts with a
+        // cores that give x264 another count of threads (`Control::Cpus`),
+        // or, with the unlock, a ceiling past the one the encoder's level
+        // was chosen for, needs another encoder, which starts with a
         // keyframe.
+        let reach = self.reach(height);
         let fits = video.encoder.as_ref().is_some_and(|encoder| {
             encoder.codec() == codec
                 && encoder.size() == (width, height)
                 && encoder.tuned(self.fps, self.effort)
                 && encoder.fits_threads(crate::cpu::threads())
+                && encoder.held() >= reach
         });
         if !fits {
             // Its pace starts again with it.
@@ -909,7 +927,12 @@ impl Sink {
         else {
             return Ok(());
         };
-        let wanted = aim(sender.target(), height, self.max_kbps);
+        let wanted = aim(
+            sender.target(),
+            height,
+            self.max_kbps,
+            self.bitrate_unlocked,
+        );
         let aimed = encoder.bitrate();
         // Not on every wobble, which would churn the rate control.
         if wanted.abs_diff(aimed) > aimed / 10 {
@@ -1082,21 +1105,38 @@ impl Sink {
     /// An encoder in `codec` on `device`, at the stream's target, or what
     /// a stream of `height` lines starts at before it has one; never above
     /// the cap of `height` lines and the bitrate limit, which the stream's
-    /// target follows once a frame of the new size goes out.
+    /// target follows once a frame of the new size goes out. With the
+    /// unlock past 9 Mbit/s it opens holding that cap ([`Self::reach`]).
     fn open_on(&self, codec: Codec, width: u32, height: u32, device: &Device) -> Result<Encoder> {
+        let (max_kbps, unlocked) = (self.max_kbps, self.bitrate_unlocked);
         let target = self.video.as_ref().map_or_else(
-            || congestion::start(stream_connection::cap(height, self.max_kbps).into()),
+            || congestion::start(stream_connection::cap(height, max_kbps, unlocked).into()),
             |video| video.sender.target(),
         );
-        Encoder::on(
+        Encoder::holding(
             codec,
             width,
             height,
             self.fps,
-            aim(target, height, self.max_kbps),
+            aim(target, height, max_kbps, unlocked),
+            self.reach(height),
             self.effort,
             device,
         )
+    }
+
+    /// The kbit/s an encoder for frames `height` lines tall opens holding,
+    /// so the level its stream signals takes what the stream may rise to:
+    /// the cap, where the unlock takes it past Discord's documented
+    /// 9 Mbit/s; else 0, as every level a stream's size takes holds 9 and
+    /// encoders open at their aim, as they always have.
+    fn reach(&self, height: u32) -> u32 {
+        let cap = stream_connection::cap(height, self.max_kbps, self.bitrate_unlocked);
+        if cap > stream_connection::DOCUMENTED_MAX {
+            cap / 1000
+        } else {
+            0
+        }
     }
 
     /// The graphics encoders to try for the stream, best first, read once
@@ -1187,7 +1227,18 @@ impl Sink {
                     self.max_kbps = max_kbps;
                     if let Some(video) = &self.video {
                         video.sender.set_fps(self.fps);
-                        video.sender.set_ceiling(max_kbps);
+                        video.sender.set_ceiling(max_kbps, self.bitrate_unlocked);
+                    }
+                }
+                // As a new limit: the target drops under Discord's cap at
+                // once, or may rise past it as the uplink allows; an
+                // encoder whose level wouldn't hold the new cap opens again
+                // with the next frame.
+                Control::BitrateUnlocked(on) if on != self.bitrate_unlocked => {
+                    tracing::info!(on, "the bitrate limit's unlock changed");
+                    self.bitrate_unlocked = on;
+                    if let Some(video) = &self.video {
+                        video.sender.set_ceiling(self.max_kbps, on);
                     }
                 }
                 // The encoder closes, and the next frame opens one where
@@ -1499,11 +1550,12 @@ fn test_pattern(mut sink: Sink, stop: &AtomicBool, report: &mut dyn FnMut(Report
 
 /// The kbit/s to encode frames of `height` lines at, for a stream aiming
 /// at `target` bit/s: never above that size's cap, nor the bitrate limit
-/// `max_kbps` ([`stream_connection::cap`]). After a smaller size or a lower
-/// limit the stream's target follows the new cap only once its next frame
-/// goes out, and the encoder would otherwise go back up to the old one.
-fn aim(target: u64, height: u32, max_kbps: Option<u32>) -> u32 {
-    (target.min(stream_connection::cap(height, max_kbps).into()) / 1000) as u32
+/// `max_kbps`, `unlocked` or not ([`stream_connection::cap`]). After a
+/// smaller size or a lower limit the stream's target follows the new cap
+/// only once its next frame goes out, and the encoder would otherwise go
+/// back up to the old one.
+fn aim(target: u64, height: u32, max_kbps: Option<u32>, unlocked: bool) -> u32 {
+    (target.min(stream_connection::cap(height, max_kbps, unlocked).into()) / 1000) as u32
 }
 
 /// How hard the encoder works at `quality`.
@@ -2039,6 +2091,26 @@ pub fn set_hardware_encoding(on: bool) {
     set_encode_on(if on { "auto" } else { "software" });
 }
 
+/// Whether a stream's bitrate limit may pass Discord's documented
+/// 9 Mbit/s: Settings' "Unlocked bitrate", off until the UI says.
+static BITRATE_UNLOCKED: AtomicBool = AtomicBool::new(false);
+
+/// Lets streams' bitrate limit past Discord's documented 9 Mbit/s, up to
+/// 50 ([`stream_connection::cap`]), or holds it to 9 again, as `layout.json`'s
+/// `stream_bitrate_unlocked` keeps it: for those started from now on, and
+/// those going on, from their next frame. A limit kept past 9 Mbit/s is
+/// left as it is, and counts as 9 while it's off.
+pub fn unlock_bitrate(on: bool) {
+    if BITRATE_UNLOCKED.swap(on, Ordering::Relaxed) != on {
+        tell_running(&Control::BitrateUnlocked(on));
+    }
+}
+
+/// Whether [`unlock_bitrate`] let the limit past 9 Mbit/s.
+pub fn bitrate_unlocked() -> bool {
+    BITRATE_UNLOCKED.load(Ordering::Relaxed)
+}
+
 /// The logical CPUs Settings chose for Yapfast, which its workers run on
 /// too; none for every one.
 static CPUS: Mutex<Option<CpuMask>> = Mutex::new(None);
@@ -2152,6 +2224,7 @@ impl Worker {
             effort: effort(quality),
             encode_on,
             max_kbps: quality.max_kbps,
+            bitrate_unlocked: bitrate_unlocked(),
         };
         let (worker, reports) = Self::start(&job)?;
         Ok((worker, frames, reports))
@@ -2930,6 +3003,67 @@ mod tests {
         ));
     }
 
+    /// The unlock reaches a sink as it shares, as where it encodes does,
+    /// and the limit it keeps counts past 9 Mbit/s only while it's on: the
+    /// encoder opens holding that cap, and one that holds less opens again.
+    #[test]
+    fn takes_the_bitrate_unlock() {
+        let frames = Frames::create(PREVIEW_WIDTH, PREVIEW_HEIGHT).unwrap();
+        let (controls, received) = channel::channel();
+        let mut sink = sink_writing(&frames, received, EncodeOn::Software);
+        sink.max_kbps = Some(20_000);
+        assert_eq!(sink.reach(1440), 0, "9 Mbit/s: nothing more to hold");
+        controls.send(Control::BitrateUnlocked(true)).unwrap();
+        sink.check(&mut |_| {}).unwrap();
+        assert!(sink.bitrate_unlocked);
+        assert_eq!(sink.reach(1440), 20_000);
+        assert_eq!(sink.reach(720), 20_000, "at every size");
+        sink.max_kbps = None;
+        assert_eq!(sink.reach(1440), 0, "Auto is Discord's cap");
+        sink.max_kbps = Some(8_000);
+        assert_eq!(sink.reach(1440), 0);
+        let encoder = sink
+            .open_on(Codec::H264, 64, 36, &Device::Processor)
+            .unwrap();
+        assert_eq!(encoder.held(), 0, "opened as it always was");
+        sink.max_kbps = Some(50_000);
+        let encoder = sink
+            .open_on(Codec::H264, 64, 36, &Device::Processor)
+            .unwrap();
+        assert_eq!(
+            (encoder.held(), encoder.bitrate()),
+            (50_000, 2_500),
+            "holding 50, starting where streams start"
+        );
+        controls.send(Control::BitrateUnlocked(false)).unwrap();
+        sink.check(&mut |_| {}).unwrap();
+        assert!(!sink.bitrate_unlocked);
+        assert_eq!(sink.max_kbps, Some(50_000), "kept for when it's back");
+        assert_eq!(sink.reach(1440), 0);
+        // A job from before the unlock shares within 9 Mbit/s.
+        let job: Job = serde_json::from_str(
+            r#"{"share":{"source":"test_pattern","frames":"/x","width":2,"height":2,"fps":30}}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            job,
+            Job::Share {
+                bitrate_unlocked: false,
+                ..
+            }
+        ));
+        let line = serde_json::to_string(&Control::BitrateUnlocked(true)).unwrap();
+        assert_eq!(line, r#"{"bitrate_unlocked":true}"#);
+    }
+
+    /// The core's own numbers for the limit agree with the connection's.
+    #[test]
+    fn the_limits_kbps_are_the_connections() {
+        use crate::voice::{DOCUMENTED_KBPS, UNLOCKED_KBPS};
+        assert_eq!(DOCUMENTED_KBPS * 1000, stream_connection::DOCUMENTED_MAX);
+        assert_eq!(UNLOCKED_KBPS * 1000, stream_connection::UNLOCKED_MAX);
+    }
+
     /// A change of where streams encode reaches the sink while it shares:
     /// it closes the encoder, and the next frame opens one there. The
     /// same choice again changes nothing.
@@ -2978,6 +3112,7 @@ mod tests {
             effort: Effort::Light,
             encode_on,
             max_kbps: None,
+            bitrate_unlocked: false,
         };
         for on in [EncodeOn::Software, EncodeOn::Auto] {
             // What Yapfast starts the worker with: the CPUs as Linux lists
@@ -3148,19 +3283,29 @@ mod tests {
     /// frame goes out.
     #[test]
     fn aims_within_the_cap_of_a_new_size() {
-        assert_eq!(aim(6_000_000, 720, None), 3_500);
-        assert_eq!(aim(6_000_000, 1080, None), 6_000);
-        assert_eq!(aim(2_000_000, 720, None), 2_000);
+        assert_eq!(aim(6_000_000, 720, None, false), 3_500);
+        assert_eq!(aim(6_000_000, 1080, None, false), 6_000);
+        assert_eq!(aim(2_000_000, 720, None, false), 2_000);
     }
 
     /// A bitrate limit is a ceiling: it lowers the aim, never raises it, and
-    /// never past Discord's cap for the size.
+    /// never past Discord's cap for the size, unless unlocked, then never
+    /// past 50 Mbit/s. A limit of 20 kept while it's locked aims at 9, and
+    /// at 20 again once it's unlocked.
     #[test]
     fn aims_within_the_bitrate_limit() {
-        assert_eq!(aim(9_000_000, 1440, Some(5_000)), 5_000);
-        assert_eq!(aim(3_000_000, 1440, Some(5_000)), 3_000, "not a floor");
-        assert_eq!(aim(9_000_000, 1440, Some(20_000)), 9_000);
-        assert_eq!(aim(9_000_000, 720, Some(8_000)), 3_500);
+        assert_eq!(aim(9_000_000, 1440, Some(5_000), false), 5_000);
+        assert_eq!(
+            aim(3_000_000, 1440, Some(5_000), false),
+            3_000,
+            "not a floor"
+        );
+        assert_eq!(aim(30_000_000, 1440, Some(20_000), false), 9_000);
+        assert_eq!(aim(9_000_000, 720, Some(8_000), false), 3_500);
+        assert_eq!(aim(30_000_000, 1440, Some(20_000), true), 20_000);
+        assert_eq!(aim(12_000_000, 1440, Some(20_000), true), 12_000);
+        assert_eq!(aim(60_000_000, 720, Some(60_000), true), 50_000);
+        assert_eq!(aim(30_000_000, 1440, None, true), 9_000, "Auto");
     }
 
     /// The test pattern's frames follow a change of quality sent to the
@@ -3178,6 +3323,7 @@ mod tests {
             effort: Effort::Light,
             encode_on: EncodeOn::Software,
             max_kbps: None,
+            bitrate_unlocked: false,
         };
         let (input, mut feed) = std::io::pipe().unwrap();
         writeln!(feed, "{}", serde_json::to_string(&job).unwrap()).unwrap();
@@ -3243,6 +3389,7 @@ mod tests {
             effort: Effort::Light,
             encode_on: EncodeOn::Software,
             max_kbps: None,
+            bitrate_unlocked: false,
         };
         let (input, mut feed) = std::io::pipe().unwrap();
         writeln!(feed, "{}", serde_json::to_string(&job).unwrap()).unwrap();
@@ -3294,6 +3441,7 @@ mod tests {
             effort: Effort::Light,
             encode_on: EncodeOn::Software,
             max_kbps: None,
+            bitrate_unlocked: false,
         };
         let (input, mut feed) = std::io::pipe().unwrap();
         writeln!(feed, "{}", serde_json::to_string(&job).unwrap()).unwrap();
@@ -3431,6 +3579,7 @@ mod tests {
                 effort: Effort::Light,
                 encode_on: EncodeOn::Software,
                 max_kbps: None,
+                bitrate_unlocked: false,
             };
             let (input, mut feed) = std::io::pipe().unwrap();
             writeln!(feed, "{}", serde_json::to_string(&job).unwrap()).unwrap();
@@ -3486,6 +3635,7 @@ mod tests {
             effort: Effort::Light,
             encode_on: EncodeOn::Software,
             max_kbps: None,
+            bitrate_unlocked: false,
         };
         let (input, mut feed) = std::io::pipe().unwrap();
         writeln!(feed, "{}", serde_json::to_string(&job).unwrap()).unwrap();
@@ -3523,6 +3673,7 @@ mod tests {
             effort: Effort::Light,
             encode_on: EncodeOn::Software,
             max_kbps: None,
+            bitrate_unlocked: false,
         };
         let mut reports = Vec::new();
         let input = format!("{}\n", serde_json::to_string(&gone).unwrap());

@@ -2363,8 +2363,6 @@ fn showing(chat: Vec<ChatMessage>) -> YapfastWindow {
     window.set_room_selected(true);
     window.set_room_ready(true);
     window.set_composer_enabled(true);
-    // A device that may write, so the verification banner stays away.
-    window.set_trusted(true);
     let rows: Vec<MessageRow> = chat
         .into_iter()
         .enumerate()
@@ -4376,7 +4374,6 @@ fn dragging_the_calls_lower_edge_resizes_it_within_limits_and_remembers_it() {
     window
         .window()
         .set_size(slint::LogicalSize::new(1400., 860.));
-    window.set_trusted(true);
     window.set_voice_here(true);
     window.set_call_shown(true);
     let button = slint::platform::PointerEventButton::Left;
@@ -5742,12 +5739,9 @@ fn callbacks_preserve_drafts_scope_voice_and_clear_session_inputs() {
     assert!(!window.get_muted());
     window.invoke_toggle_deafen();
     assert!(window.get_muted() && window.get_deafened());
-    window.set_password("secret that must be cleared".into());
-    window.set_recovery("recovery that must be cleared".into());
     window.set_settings_open(true);
     window.invoke_logout();
     assert!(!window.get_workspace() && !window.get_voice_active());
-    assert!(window.get_password().is_empty() && window.get_recovery().is_empty());
     assert!(!window.get_settings_open());
 }
 

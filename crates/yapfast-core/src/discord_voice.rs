@@ -799,7 +799,6 @@ pub(crate) async fn call(
                             }
                             continue;
                         }
-                        Some(Command::LeaveStale) => {}
                     }
                     discord.set_self(guild, &channel, state.muted, state.deafened, state.camera_phase == CameraPhase::On);
                     snapshots.send_replace(state.clone());

@@ -10,16 +10,13 @@ use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use serenity_voice_model::{Event, serialize_binary_event};
-use tokio::{
-    net::{TcpStream, UdpSocket},
-    time::timeout,
-};
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
+use tokio::{net::UdpSocket, time::timeout};
+use tokio_tungstenite::tungstenite::Message;
 
 use crate::{
     dave::{Dave, Out},
     rtp::{Codec, Transport},
-    websocket,
+    websocket::{self, Socket},
 };
 
 /// The voice gateway version Discord's clients use, as Discord-video-stream
@@ -35,18 +32,16 @@ pub(crate) fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 /// The voice gateway's address. A test server on this machine may give a
 /// plain WebSocket address.
-fn gateway_url(endpoint: &str) -> Result<reqwest::Url> {
+fn gateway_url(endpoint: &str) -> Result<url::Url> {
     if let Some(local) = endpoint.strip_prefix("ws://") {
-        let url = reqwest::Url::parse(&format!("ws://{local}/?v={VERSION}"))?;
+        let url = url::Url::parse(&format!("ws://{local}/?v={VERSION}"))?;
         return match url.host() {
             Some(url::Host::Ipv4(ip)) if ip.is_loopback() => Ok(url),
             Some(url::Host::Domain("localhost")) => Ok(url),
             _ => bail!("Discord gave a voice server Yapfast won't connect to"),
         };
     }
-    Ok(reqwest::Url::parse(&format!(
-        "wss://{endpoint}/?v={VERSION}"
-    ))?)
+    Ok(url::Url::parse(&format!("wss://{endpoint}/?v={VERSION}"))?)
 }
 
 /// The heartbeat interval the voice server asks for, in milliseconds, held
@@ -58,8 +53,6 @@ fn heartbeat(milliseconds: f64) -> Duration {
         Duration::from_secs(300),
     )
 }
-
-pub(crate) type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 pub(crate) async fn send_json(ws: &mut Socket, op: u8, data: Value) -> Result<()> {
     ws.send(Message::text(json!({"op": op, "d": data}).to_string()))
@@ -323,7 +316,7 @@ impl Connection {
     /// knowing `known` are in the call.
     pub async fn open(identity: &Identity, codecs: Value, known: &[u64]) -> Result<Self> {
         let url = gateway_url(&identity.endpoint)?;
-        let (mut ws, _) = timeout(HANDSHAKE, websocket::connect(url.as_str()))
+        let mut ws = timeout(HANDSHAKE, websocket::connect(url.as_str()))
             .await
             .context("the voice server didn't answer")?
             .context("couldn't reach the voice server")?;
@@ -470,7 +463,7 @@ impl Connection {
     pub async fn resume(&mut self, identity: &Identity) -> Result<()> {
         let url = gateway_url(&identity.endpoint)?;
         let resumed = async {
-            let (mut ws, _) = websocket::connect(url.as_str()).await?;
+            let mut ws = websocket::connect(url.as_str()).await?;
             send_json(
                 &mut ws,
                 7,

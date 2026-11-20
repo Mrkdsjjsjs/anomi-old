@@ -1,6 +1,6 @@
 import { ScrollView } from "scrollview.slint";
-import { Theme, Label } from "theme.slint";
-import { ActionButton, TextField, Banner } from "controls.slint";
+import { Theme } from "theme.slint";
+import { ActionButton, Banner } from "controls.slint";
 import { DiscordLinkPanel } from "discord.slint";
 import { BuildInfo } from "yapfast/build-info.slint";
 
@@ -8,22 +8,12 @@ import { BuildInfo } from "yapfast/build-info.slint";
 export component SignInScreen inherits Rectangle {
     in property <bool> busy;
     in property <string> notice;
-    in property <bool> restore-available;
-    // A build without Matrix signs in by linking Discord.
-    in property <bool> matrix-build;
     // Linking Discord by QR code; see DiscordLinkPanel.
     in property <int> link-phase;
     in property <image> link-code;
     in property <string> link-name;
     in property <string> link-note;
-    // The Matrix sign-in focuses its first field each time this counts up.
-    in property <int> sign-in-focus;
     in-out property <string> graphics-notice;
-    in-out property <string> homeserver;
-    in-out property <string> username;
-    in-out property <string> password;
-    callback login;
-    callback restore;
     callback explore-preview;
     callback link-discord;
     callback link-discord-token(string);
@@ -56,8 +46,8 @@ export component SignInScreen inherits Rectangle {
                     drop-shadow-blur: 32px; drop-shadow-color: #00000066; drop-shadow-offset-y: 12px;
                     HorizontalLayout {
                         padding: 32px; spacing: 32px;
-                        // A build without Matrix signs in by linking Discord.
-                        if !root.matrix-build: VerticalLayout {
+                        // Signing in links Discord.
+                        VerticalLayout {
                             spacing: 8px; horizontal-stretch: 1; min-width: 300px;
                             Text { text: @tr("Sign in to Yapfast"); color: Theme.text; font-size: 26px; font-weight: 700; horizontal-alignment: center; wrap: word-wrap; }
                             Text { text: @tr("Link your Discord account with your phone."); color: Theme.secondary; horizontal-alignment: center; wrap: word-wrap; }
@@ -71,27 +61,6 @@ export component SignInScreen inherits Rectangle {
                             if root.notice != "" && (root.busy || root.link-phase == 0): Text {
                                 text: root.notice; color: root.busy ? Theme.secondary : Theme.danger; font-size: 15px; wrap: word-wrap;
                             }
-                        }
-                        if root.matrix-build: VerticalLayout {
-                            property <int> focus-asked: root.sign-in-focus;
-                            changed focus-asked => { username-field.focus-input(); }
-                            spacing: 8px; horizontal-stretch: 1; min-width: 300px;
-                            Text { text: @tr("Sign in to Yapfast"); color: Theme.text; font-size: 26px; font-weight: 700; horizontal-alignment: center; wrap: word-wrap; }
-                            Text { text: @tr("Use your existing Matrix account."); color: Theme.secondary; horizontal-alignment: center; wrap: word-wrap; }
-                            Rectangle { height: 12px; }
-                            Text { text: @tr("HOMESERVER"); color: Theme.secondary; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; }
-                            TextField { text <=> root.homeserver; enabled: !root.busy; label: @tr("Homeserver"); }
-                            Rectangle { height: 4px; }
-                            Text { text: @tr("MATRIX ID"); color: Theme.secondary; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; }
-                            username-field := TextField { text <=> root.username; placeholder: "@you:matrix.org"; enabled: !root.busy; label: @tr("Matrix ID"); }
-                            Rectangle { height: 4px; }
-                            Text { text: @tr("PASSWORD"); color: Theme.secondary; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; }
-                            TextField { text <=> root.password; password: true; enabled: !root.busy; label: @tr("Password"); accepted => { root.login(); } }
-                            Rectangle { height: 12px; }
-                            ActionButton { min-height: 44px; text: root.busy ? @tr("Connecting...") : @tr("Sign in"); primary: true; enabled: !root.busy; clicked => { root.login(); } }
-                            if root.notice != "": Text { text: root.notice; color: Theme.danger; font-size: 15px; wrap: word-wrap; }
-                            if root.restore-available && !root.busy: ActionButton { text: @tr("Retry saved session"); clicked => { root.restore(); } }
-                            Label { text: @tr("Sign in with your Matrix password. Single sign-on isn't available yet."); }
                         }
                         Rectangle { width: 1px; background: Theme.line; }
                         VerticalLayout {
@@ -109,34 +78,6 @@ export component SignInScreen inherits Rectangle {
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-// Above the conversation until this device is verified: a Matrix recovery key
-// verifies it, or verifying it in another client.
-export component VerifyBanner inherits Rectangle {
-    in property <bool> busy;
-    in-out property <string> recovery;
-    callback recover;
-    callback refresh-trust;
-    min-height: trust-content.preferred-height; background: Theme.raised; vertical-stretch: 0;
-    trust-content := HorizontalLayout {
-        padding: 16px; spacing: 14px;
-        Rectangle {
-            width: 36px; height: 36px; border-radius: 18px; background: Theme.accent-soft;
-            Image { source: @image-url("icons/lock.svg"); width: 18px; height: 18px; colorize: Theme.accent; }
-        }
-        VerticalLayout {
-            spacing: 8px;
-            Text { text: @tr("Verify this device to send messages"); color: Theme.text; font-weight: 700; wrap: word-wrap; }
-            Label { text: @tr("Use your Matrix recovery key, or verify Yapfast in another client and check again."); color: Theme.secondary; font-size: 14px; }
-            HorizontalLayout {
-                spacing: 8px;
-                TextField { text <=> root.recovery; password: true; placeholder: @tr("Recovery key"); label: @tr("Matrix recovery key"); enabled: !root.busy; min-height: 36px; accepted => { root.recover(); } }
-                ActionButton { text: @tr("Recover"); primary: true; enabled: !root.busy; clicked => { root.recover(); } }
-                ActionButton { text: @tr("Check again"); enabled: !root.busy; clicked => { root.refresh-trust(); } }
             }
         }
     }

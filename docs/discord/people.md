@@ -2,7 +2,7 @@
 
 ## DMs
 
-DMs and group DMs are listed under the DM button after Matrix DMs, the latest
+DMs and group DMs are listed under the DM button, the latest
 conversation first as in Discord, with the other person's avatar or the
 group's icon and a Discord badge. They open, send and keep their messages
 like server channels, under the room id `discord:@me:<channel>`, which takes
@@ -406,9 +406,7 @@ once a second, and only while a profile with one shows and the window is in
 front; the same clock ticks
 every 15 seconds for
 [busy voice channels' times](voice.md#how-long-a-channels-call-has-gone-on)
-otherwise. Matrix members and
-one-to-one Matrix DMs get the same card with their name, Matrix ID, avatar and
-room role.
+otherwise.
 
 Someone's server tag shows as a small chip, as in Discord: the badge of the
 server they represent, then up to four letters. It comes from the
@@ -1092,8 +1090,11 @@ refuses a token for, code 40012 for one revoked, is left until
 `USER_CONNECTIONS_UPDATE` changes the list, which comes from
 `GET /users/@me/connections`. Tokens stay in memory. Neither they nor the
 socket's address reach a log; a socket that fails logs why, such as a TLS
-error. The socket trusts the certificates the system trusts, as HTTPS and
-Discord's sockets do (`websocket.rs`). The tests' fake dealer speaks `ws://`,
+error. Spotify's requests and socket go as Discord's web client's do, from
+its page, through the browser every connection presents as, but through the
+client without Discord's cookies, and trust the certificates the system
+trusts, as everything else does ([how Yapfast presents
+itself](README.md#how-yapfast-presents-itself)). The tests' fake dealer speaks `ws://`,
 so the ignored `reaches_spotifys_real_dealer` test opens the real one with no
 token and expects its 401.
 

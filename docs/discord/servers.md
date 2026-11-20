@@ -165,8 +165,8 @@ of the server, with what Discord's client adds there, in its order:
 The tracker keeps a voice state's own `self_mute` and `self_deaf` apart from
 the server's `mute` and `deaf`, so the channel list and the call show a
 server mute or deafen in red, as Discord's client does. Discord's Disable
-Video and Apps aren't offered yet. In a DM's call or a
-Matrix room's, the right click still sets only the volume.
+Video and Apps aren't offered yet. In a DM's call, the right click still sets
+only the volume.
 
 Discord answers each change with GUILD_MEMBER_UPDATE, or for a kick with
 GUILD_MEMBER_REMOVE, and for a ban with GUILD_BAN_ADD as well, and sends the

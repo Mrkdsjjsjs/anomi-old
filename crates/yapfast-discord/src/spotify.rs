@@ -14,26 +14,22 @@ use std::{
 };
 
 use futures_util::{SinkExt, StreamExt};
-use reqwest::{Client, Response, StatusCode, header};
 use serde_json::{Value, json};
 use tokio::{
-    net::TcpStream,
     sync::{mpsc, watch},
     task::JoinSet,
     time::{Instant, MissedTickBehavior, timeout},
 };
-use tokio_tungstenite::{
-    MaybeTlsStream, WebSocketStream,
-    tungstenite::{self, Message, client::IntoClientRequest, http::HeaderValue},
-};
+use tokio_tungstenite::tungstenite::Message;
+use yapfast_http::wreq::{Client, Method, Response, StatusCode};
 
 use crate::{
     api::{self, Api, Refused},
-    client, websocket,
+    browser, client,
+    websocket::{self, Socket},
 };
 
 type Activity = Option<Arc<Value>>;
-type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 const API: &str = "https://api.spotify.com/v1";
 const DEALER: &str = "wss://dealer.spotify.com";
@@ -214,13 +210,23 @@ fn show(shown: &watch::Sender<Activity>, next: Activity) {
     });
 }
 
-/// A client of its own, so that Discord's cookies and login never reach Spotify.
-fn http() -> reqwest::Result<Client> {
-    Client::builder()
-        .user_agent(client::user_agent())
-        .connect_timeout(REQUEST_TIMEOUT)
+/// The client without Discord's cookies, so they never reach Spotify, and
+/// Discord's login only as the token Discord lends.
+fn http() -> anyhow::Result<Client> {
+    yapfast_http::web().cloned()
+}
+
+/// A request to Spotify's API as Discord's web client makes it: its script,
+/// from its page, cross-site, with the lent token.
+fn ask(
+    http: &Client,
+    method: Method,
+    url: &str,
+    token: &str,
+) -> yapfast_http::wreq::RequestBuilder {
+    yapfast_http::request(http, browser::SCRIPT, method, url)
+        .bearer_auth(token)
         .timeout(REQUEST_TIMEOUT)
-        .build()
 }
 
 /// Why following a link stopped or paused.
@@ -287,7 +293,7 @@ impl Watch {
         self.poll().await?;
         let token = self.token.as_deref().ok_or(Failed::NoToken)?;
         let url = format!("{}/?access_token={token}", self.endpoints.dealer);
-        match open(url).await {
+        match open(&self.http, url).await {
             Ok(socket) => self.listen(socket, backoff).await,
             Err(status) => {
                 if status == Some(StatusCode::UNAUTHORIZED) {
@@ -414,14 +420,11 @@ impl Watch {
         let mut renewed = false;
         loop {
             let token = self.token.as_deref().ok_or(Failed::NoToken)?;
-            let response = self
-                .http
-                .get(url)
-                .bearer_auth(token)
+            let response = ask(&self.http, Method::GET, url, token)
                 .send()
                 .await
                 .map_err(|error| {
-                    let error = error.without_url();
+                    let error = error.without_uri();
                     tracing::warn!(%error, "couldn't reach Spotify");
                     Failed::Spotify
                 })?;
@@ -473,33 +476,16 @@ fn events(message: &Value) -> impl Iterator<Item = &Value> {
         .flat_map(|payload| payload["events"].as_array().into_iter().flatten())
 }
 
-/// Opens the dealer socket, trusting what HTTPS and Discord's own sockets
-/// trust: tokio-tungstenite's `connect_async` has no certificates of its own
-/// here, so it can't open a `wss://` address at all. An error gives Spotify's
-/// refusal; the log gives why it failed, but never the address, which holds
-/// the token.
-async fn open(url: String) -> Result<Socket, Option<StatusCode>> {
-    let mut request = url.into_client_request().map_err(|_| None)?;
-    let headers = request.headers_mut();
-    headers.insert(
-        header::USER_AGENT,
-        HeaderValue::from_static(client::user_agent()),
-    );
-    headers.insert(
-        header::ORIGIN,
-        HeaderValue::from_static("https://discord.com"),
-    );
-    match timeout(REQUEST_TIMEOUT, websocket::connect(request)).await {
-        Ok(Ok((socket, _))) => Ok(socket),
-        Ok(Err(tungstenite::Error::Http(response))) => {
-            let status = response.status();
+/// Opens the dealer socket as Discord's web client does, through the client
+/// without Discord's cookies, with the browser's TLS and certificates. An
+/// error gives Spotify's refusal; the log gives why it failed, but never the
+/// address, which holds the token.
+async fn open(http: &Client, url: String) -> Result<Socket, Option<StatusCode>> {
+    match timeout(REQUEST_TIMEOUT, websocket::connect_with(http, &url)).await {
+        Ok(Ok(socket)) => Ok(socket),
+        Ok(Err(websocket::Error::Refused(status))) => {
             tracing::warn!(%status, "Spotify refused its socket");
-            Err(StatusCode::from_u16(status.as_u16()).ok())
-        }
-        // A URL error may quote the address.
-        Ok(Err(tungstenite::Error::Url(_))) => {
-            tracing::warn!("couldn't reach Spotify's socket: a bad address");
-            Err(None)
+            Err(Some(status))
         }
         Ok(Err(error)) => {
             tracing::warn!(%error, "couldn't reach Spotify's socket");
@@ -519,7 +505,7 @@ async fn subscribe(http: Client, url: String, token: String) -> bool {
         if attempt > 0 {
             tokio::time::sleep(SUBSCRIBE_WAIT).await;
         }
-        let answer = http.put(&url).bearer_auth(&token).send().await;
+        let answer = ask(&http, Method::PUT, &url, &token).send().await;
         if answer.is_ok_and(|answer| {
             answer.status().is_success() && answer.status() != StatusCode::ACCEPTED
         }) {
@@ -704,10 +690,10 @@ mod tests {
 
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
-        net::TcpListener,
+        net::{TcpListener, TcpStream},
     };
     use tokio_tungstenite::{
-        accept_hdr_async,
+        WebSocketStream, accept_hdr_async,
         tungstenite::handshake::server::{Request, Response as Answer},
     };
 

@@ -2,11 +2,11 @@
 Type=Application
 Name=Anomi
 GenericName=Chat
-Comment=Chat and voice for Matrix and Discord
+Comment=Chat and voice for Discord
 Exec=yapfast --open-link %u
 Icon=io.github.yapfast.Yapfast
 Terminal=false
 Categories=Network;InstantMessaging;Chat;
 MimeType=x-scheme-handler/yapfast;
-Keywords=Matrix;Discord;Voice;
+Keywords=Discord;Voice;
 StartupWMClass=io.github.yapfast.Yapfast

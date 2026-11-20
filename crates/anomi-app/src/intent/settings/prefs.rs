@@ -7,7 +7,8 @@
 //! of the window shows (the clock, compact messages, the text's size) shows
 //! there at once. Advanced's Optimization moves the program onto the cores
 //! chosen, switches what draws the interface (`crate::gpu::choose`) and
-//! tells the stream workers where to encode, at once.
+//! tells the stream workers where to encode and whether their bitrate may
+//! pass Discord's documented 9 Mbit/s, at once.
 
 use iced::Task;
 use yapfast_core::application::Action;
@@ -177,7 +178,6 @@ pub(super) fn sounds(app: &mut App, intent: sounds::Intent) -> Task<Message> {
 pub(super) fn discord(app: &mut App, intent: discord::Intent) -> Task<Message> {
     use discord::Intent as I;
     match intent {
-        I::Unlink => app.dispatch(Action::UnlinkDiscord),
         I::ShowHiddenChannels(on) => keep_and(
             app,
             |saved| saved.show_hidden_channels = on,
@@ -261,6 +261,16 @@ pub(super) fn advanced(app: &mut App, intent: advanced::Intent) -> Task<Message>
                 .edit(|saved| saved.set_encoder(&Encoder::of(&key)));
             #[cfg(feature = "discord")]
             yapfast_core::stream_worker::set_encode_on(app.layout.encoder().key());
+        }
+        // A stream going takes it at once; the share menus and the dock
+        // say the limit in force.
+        I::BitrateUnlocked(on) => {
+            app.layout
+                .edit(|saved| saved.stream_bitrate_unlocked = on);
+            #[cfg(feature = "discord")]
+            yapfast_core::stream_worker::unlock_bitrate(on);
+            crate::intent::voice::share::unlocked(app, on);
+            app.show(Reach::VOICE);
         }
         I::Renderer(key) if !key.is_empty() => {
             let choice = crate::gpu::Choice::parse(Some(key.as_str()));

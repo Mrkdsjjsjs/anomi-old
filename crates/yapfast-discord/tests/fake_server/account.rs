@@ -602,7 +602,7 @@ async fn links_by_qr_code() {
     let Step::Captcha(page) = next_step(&mut shown).await else {
         panic!("no captcha")
     };
-    let browser = reqwest::Client::new();
+    let browser = yapfast_http::wreq::Client::new();
     let html = browser
         .get(&page)
         .send()

@@ -131,6 +131,7 @@ pub fn advanced() -> Advanced {
             "Auto takes the integrated graphics first, then a discrete card, then the processor. Now it's {}.",
             "AMD Radeon 610M"
         ),
+        bitrate_unlocked: false,
     }
 }
 
@@ -171,6 +172,14 @@ pub fn gpu() -> Vm {
     let page = &mut vm.settings.advanced;
     page.renderers = renderers(true);
     page.renderer_line = tr!("{} draws the interface now.", RADEON);
+    vm
+}
+
+/// "Unlocked bitrate" on, the switches the system lacks left out, so the
+/// row and its note show in the window.
+pub fn unlocked() -> Vm {
+    let mut vm = bare();
+    vm.settings.advanced.bitrate_unlocked = true;
     vm
 }
 

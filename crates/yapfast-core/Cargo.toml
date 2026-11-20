@@ -2,7 +2,7 @@
 name = "yapfast-core"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 
@@ -13,8 +13,6 @@ doctest = false
 
 [features]
 default = ["discord"]
-# Matrix: sign-in, encrypted rooms and MatrixRTC voice.
-matrix = ["dep:keyring", "dep:matrix-sdk", "dep:matrix-sdk-ui", "dep:matrix-sdk-crypto", "dep:matrix-rtc-livekit", "dep:matrix-rtc-core", "dep:matrix-rtc-media", "dep:mime", "dep:url"]
 # Discord through the account linked on this device; see docs/discord/README.md.
 discord = ["dep:yapfast-discord", "dep:rand", "dep:base64", "dep:nnnoiseless", "dep:deep_filter", "dep:ndarray", "dep:x264-src", "dep:ffmpeg-src", "dep:thorvg-sys", "dep:rayon-core"]
 # Sample states other crates' tests start from, such as a Discord server
@@ -46,7 +44,6 @@ resvg = { version = "0.49", default-features = false }
 # An animated GIF's frame timings, read without decoding its pictures; the
 # version the image crate decodes with.
 gif = "0.14"
-keyring = { workspace = true, optional = true }
 livekit.workspace = true
 # libDF's frames, at the version it uses.
 ndarray = { version = "0.15", optional = true }
@@ -62,14 +59,7 @@ rand = { version = "0.9", optional = true }
 rayon-core = { version = "1.13", optional = true }
 # The stream worker hands video frames to the UI through a shared mapping.
 memmap2 = "0.9"
-matrix-sdk = { workspace = true, optional = true }
-matrix-sdk-ui = { workspace = true, optional = true }
-matrix-sdk-crypto = { workspace = true, optional = true }
-matrix-rtc-livekit = { workspace = true, optional = true }
-matrix-rtc-core = { workspace = true, optional = true }
-matrix-rtc-media = { workspace = true, optional = true }
-mime = { version = "0.3", optional = true }
-# Plain-text reply snippets from Markdown; the SDK already uses it to format messages.
+# Plain-text reply snippets from Markdown.
 pulldown-cmark = { version = "0.13", default-features = false }
 rustls.workspace = true
 serde.workspace = true
@@ -88,12 +78,9 @@ tracing-subscriber.workspace = true
 # CPU rendering of Discord's Lottie stickers, without file access or expressions.
 thorvg-sys = { version = "0.4", default-features = false, features = ["vendored", "lottie", "threads"], optional = true }
 uuid.workspace = true
-url = { workspace = true, optional = true }
-# Levels the voice in LiveKit's calls, and sends the camera from pooled
-# buffers, through Yapfast's patch to its WebRTC bindings.
+# Levels the voice WebRTC captures, through Yapfast's patch to its WebRTC
+# bindings (`leveling.rs`).
 webrtc-sys = "=0.3.35"
-# Holds the camera's video source from those bindings.
-cxx = "1"
 
 [build-dependencies]
 # The Go Live codec shims compile against the libvpx, OpenH264 and FFmpeg

@@ -1,9 +1,9 @@
 {
-  "rustVersion": "1.97.1",
+  "rustVersion": "1.98.1",
   "packages": {
-    "rustc": { "url": "https://static.rust-lang.org/dist/rustc-1.97.1-x86_64-pc-windows-msvc.tar.xz", "sha256": "0119e2788f3391a891b2e0fe611e82b433670eeae76c45995b081d0ac7715c6d", "strip": 2 },
-    "cargo": { "url": "https://static.rust-lang.org/dist/cargo-1.97.1-x86_64-pc-windows-msvc.tar.xz", "sha256": "1180ac0cd30ee98af682528c10505f5cba118f122aec9b7ca18ae605b1db38a0", "strip": 2 },
-    "rust-std": { "url": "https://static.rust-lang.org/dist/rust-std-1.97.1-x86_64-pc-windows-msvc.tar.xz", "sha256": "05f356609926e663a81e9697077214236514b2f9ff7a36e63b0070f43f073f66", "strip": 2 },
+    "rustc": { "url": "https://static.rust-lang.org/dist/rustc-1.98.1-x86_64-pc-windows-msvc.tar.xz", "sha256": "cb5370843a9d15ce6e6cf6461b4c997722220d268d0d813c2b2b86f3ed59ac24", "strip": 2 },
+    "cargo": { "url": "https://static.rust-lang.org/dist/cargo-1.98.1-x86_64-pc-windows-msvc.tar.xz", "sha256": "d6e8c738a0503b16b04db3838a38769620d553e436f632d2ebf667f793b2d44d", "strip": 2 },
+    "rust-std": { "url": "https://static.rust-lang.org/dist/rust-std-1.98.1-x86_64-pc-windows-msvc.tar.xz", "sha256": "42727764a01a54db7423e43db08a9c818405679af6a9a677068e8cd4b8361242", "strip": 2 },
     "llvm": { "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.7/clang%2Bllvm-21.1.7-x86_64-pc-windows-msvc.tar.xz", "sha256": "70a2b73f2f14f787557f90abf380e7170b54e97b893218999144de5284b4f8f8", "strip": 1 },
     "llvm-installer": { "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.7/LLVM-21.1.7-win64.exe", "sha256": "0ee11d3a8b9b64236c72c4a931fd40f138155e7df61b9df292fc0210b580945e", "strip": 0 },
     "cmake": { "url": "https://github.com/Kitware/CMake/releases/download/v4.5.0/cmake-4.5.0-windows-x86_64.zip", "sha256": "301b1728317ccd84e984b02e366a8293735bc5ac618757d3d8f58b578f062411", "strip": 1 },

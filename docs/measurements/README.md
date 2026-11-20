@@ -184,7 +184,7 @@ for a second.
 - Image-heavy channel: #general scrolled up through its hundred pictures to
   its start and back down to the newest.
 - Scrolling: #general with 60 touchpad scroll events a second, up and down
-  by turns every two seconds, as `testing/measure_scroll.py` sends them.
+  by turns every two seconds, as `testing/measure_tray.py` sends them.
 - The call: the Lounge, joined in voice activity (the display's microphone
   is silent); then Bob, Carol and Dave speaking a tone without pause
   (`/_control/speakers-start`); then its stage, Bob's stream watched.
@@ -387,10 +387,8 @@ threads, with each thread's CPU and wakeups by its name; it doesn't read
 `/proc/PID/status`. `testing/measure_tray.py` measures anonymous memory plus
 swap and heap in use with #general open, closed to the tray and in a call;
 it takes `--bin` for a saved build, and with `--parity` measures instead what
-the table of the two interfaces holds, for either build. The other
-`testing/measure_*.py` harnesses
-and `testing/join_voice.py` cover cameras, scrolling, the network builds and
-joining a call.
+the table of the two interfaces holds, for either build.
+`testing/measure_discord_cameras.py` covers a Discord call's cameras.
 
 Alternate the builds over several runs and give the spread between runs of
 one build. Keep the hardware, workload, warm-up, window state and memory

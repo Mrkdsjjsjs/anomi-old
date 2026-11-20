@@ -1,20 +1,18 @@
 # Slint desktop client
 
-Yapfast's desktop UI is Slint 1.18.1. The Matrix/session/voice services and
+Yapfast's desktop UI is Slint 1.18.1. The Discord and voice services and the
 application model are in `yapfast-core`.
 
 ## Delivered behavior
 
-- Password sign-in, saved-session restoration, recovery-key entry, trust refresh,
-  sync retry and sign-out. Passwords and recovery keys are masked and cleared
-  after starting the corresponding action or leaving the session.
-- DMs at the top of the server rail, joined Spaces below, and only the chosen
-  server's channels in the sidebar. Filtering, per-room drafts and each server's
+- Linking Discord by QR code or token, connecting with the linked account,
+  Reconnect while Discord is disconnected, and sign-out, which unlinks it.
+- DMs at the top of the server rail, the account's servers below, and only the
+  chosen server's channels in the sidebar. Filtering, per-room drafts and each server's
   remembered channel use the shared application model.
-- A selectable text timeline, earlier-message loading, encrypted sending and
-  preserved send retries. New messages follow the bottom when already there;
-  loading earlier history retains the reading position. Unencrypted rooms remain
-  readable; the core continues to require a trusted device for sending.
+- A selectable text timeline, earlier-message loading, sending and preserved
+  send retries. New messages follow the bottom when already there; loading
+  earlier history retains the reading position.
 - Persistent voice view and controls: join unmuted or muted, wait alone, participants,
   leave, mute/deafen, native device selection and explicit channel-switch
   confirmation. Browsing text, DMs or another server retains the backend session
@@ -118,42 +116,29 @@ The Windows package includes the Slint UI build sources and Skia notices.
 ## Validation and limits
 
 The automated GUI harness runs only on a private headless Weston compositor,
-with a virtual input seat, private D-Bus and private XDG directories. Connected
-fixtures disable D-Bus service activation, exercise the existing Linux private-file
-credential fallback and use disposable local accounts. They open no audio devices
-and never access the user's cursor, focus or desktop session.
+with a virtual input seat, private D-Bus and private XDG directories. It opens
+no audio devices and never accesses the user's cursor, focus or desktop
+session.
 
-The capture script is `testing/probe_slint_ui.py`. It covers only the Matrix
-fixtures: the local preview, or with `--connected` a disposable account on the
-local stack. It has no Discord fixture. Preview captures exercise local
-sending, scoped navigation, draft restoration, voice persistence, mute/deafen,
-the device popover, sign-out and password masking. Coordinate actions are checked
-against their screenshots; a successful capture alone is not a functional result.
-
-The connected fixture checks actual UI password sign-in, server/channel
-loading, encrypted sending, process restart and session restoration, and
-sign-out. It asserts that the server received one `m.room.encrypted` event,
-that its content contains no plaintext fixture, and that sign-out removes
-active session metadata. Screenshots verify the decrypted text and the restored
-timeline. This is a single-account UI integration check; the shared-core tests
-provide the broader trust, plaintext refusal and retry checks. The adapter
-tests include actual pointer dispatch into the navigation controls, per-room
-drafts, secret clearing and disabled sending under the security gates.
+The capture script is `testing/probe_slint_ui.py`. It covers the local
+preview; it has no Discord fixture. Its captures exercise local sending,
+scoped navigation, draft restoration, voice persistence, mute/deafen, the
+device popover and sign-out. Coordinate actions are checked against their
+screenshots; a successful capture alone is not a functional result. The
+adapter tests include actual pointer dispatch into the navigation controls,
+per-room drafts and disabled sending under the security gates.
 
 To reproduce the isolated checks after a desktop build:
 
 ```sh
 nix develop path:./nix --command cargo build --locked --profile fast
 nix-shell --impure testing/display/shell.nix --run 'scripts/run-framework-isolated --compositor-log .local/slint-ui.weston.log -- python3 testing/probe_slint_ui.py --output .impeccable/review/slint-ui --renderer gpu --size 1120x760'
-scripts/test-stack up
-nix-shell --impure testing/display/shell.nix --run 'scripts/run-framework-isolated --no-services --compositor-log .local/slint-connected.weston.log -- python3 testing/probe_slint_ui.py --output .impeccable/review/slint-connected --renderer gpu --size 1120x760 --connected'
 ```
 
 Use `--renderer software --size 800x560` for the minimum-size capture. GUI
 evidence lives under the ignored `.impeccable/review` directory, with binary
 hashes and assertion results in `actions.json`. The probe runs
-`target/fast/yapfast` unless `--exe` names another build. Add `--connected
---long-name` to exercise long labels against the local stack.
+`target/fast/yapfast` unless `--exe` names another build.
 
 For screenshots and checks by hand, `scripts/ui-session` runs Yapfast, or a
 Discord-only build against `testing/fake_discord.ts`, on the same kind of
@@ -166,7 +151,4 @@ keyboard/IME/copy-paste, resize, graphics compatibility and Linux–Windows audi
 checks by the tester. Native audio/backend regression evidence does not prove
 the new desktop controls on every platform. The [tray](tray.md) is checked on
 Linux against a stand-in tray and cross-built for Windows; real Windows still
-needs its checks. SSO/emoji verification, room creation, ringing Matrix DM
-calls and screen sharing on Matrix are not implemented; Matrix calls carry
-cameras (`crates/yapfast-core/src/matrix_video.rs`). Attachments and the other
-conversation features are described in [the chat guide](chat-ui.md).
+needs its checks. Attachments and the other conversation features are described in [the chat guide](chat-ui.md).

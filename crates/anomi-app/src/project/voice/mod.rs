@@ -113,7 +113,8 @@ pub fn show(
 ) {
     let state = &core.state;
     let voice = &state.voice;
-    dock::show(state, &mut shown.timer, &mut vm.voice.dock);
+    let unlocked = layout.stream_bitrate_unlocked;
+    dock::show(state, unlocked, &mut shown.timer, &mut vm.voice.dock);
     vm.voice.dock.noise_on = layout.noise_suppression != yapfast_core::noise::Suppressor::Off;
     dock::controls(state, &vm.voice.dock, &mut vm.voice.controls);
     vm.shell.voice_dock = voice.active() || voice.error.is_some();

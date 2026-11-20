@@ -917,16 +917,10 @@ fn native_voice_switch_is_explicit_and_rechecks_trust_before_leaving() {
             .is_empty()
     );
     assert_eq!(app.state.voice.room.as_deref(), Some("lounge"));
-    app.apply(Event::Trust {
-        trusted: false,
-        error: None,
-    });
+    app.state.trusted = false;
     assert!(app.dispatch(Action::ConfirmVoiceSwitch).is_empty());
     assert!(app.state.switch_voice.is_none());
-    app.apply(Event::Trust {
-        trusted: true,
-        error: None,
-    });
+    app.state.trusted = true;
     app.dispatch(Action::RequestJoinVoice("party-voice".into()));
     assert!(matches!(
         app.dispatch(Action::ConfirmVoiceSwitch).as_slice(),

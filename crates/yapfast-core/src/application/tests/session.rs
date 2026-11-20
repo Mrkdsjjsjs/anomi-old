@@ -74,43 +74,34 @@ fn security_gates_are_shared_by_every_ui_adapter() {
 }
 
 #[test]
-fn login_recovery_and_error_state_do_not_depend_on_widgets() {
+fn restore_and_error_state_do_not_depend_on_widgets() {
     let mut app = Application::default();
-    assert!(
-        app.dispatch(Action::Login {
-            homeserver: "".into(),
-            username: "alice".into(),
-            password: "secret".into()
-        })
-        .is_empty()
-    );
-    assert!(!app.state.busy);
-    let effects = app.dispatch(Action::Login {
-        homeserver: " https://example.org ".into(),
-        username: " @alice:example.org ".into(),
-        password: " secret ".into(),
-    });
-    assert!(
-        matches!(effects.as_slice(), [Effect::Start(chat::Start::Login { homeserver, username, password })] if homeserver == "https://example.org" && username == "@alice:example.org" && password == " secret ")
-    );
+    assert!(matches!(
+        app.dispatch(Action::Restore).as_slice(),
+        [Effect::Start(chat::Start::Restore)]
+    ));
     assert!(app.state.busy);
     assert!(app.dispatch(Action::Restore).is_empty());
-    app.apply(Event::Error("Wrong credentials".into()));
+    app.apply(Event::Error("Link your Discord account to sign in.".into()));
     app.stopped();
-    assert_eq!(app.state.notice.as_deref(), Some("Wrong credentials"));
-    assert!(!app.state.busy);
-    app = connected();
-    assert!(
-        matches!(app.dispatch(Action::Recover(" key ".into())).as_slice(), [Effect::Backend(Command::Recover(key))] if key == "key")
+    assert_eq!(
+        app.state.notice.as_deref(),
+        Some("Link your Discord account to sign in.")
     );
-    assert!(app.state.busy);
-    app.backend_failed(&Command::Recover("key".into()));
     assert!(!app.state.busy);
-    app.apply(Event::Voice(voice::State {
-        phase: Phase::Connected,
-        room: Some("lounge".into()),
-        ..Default::default()
-    }));
-    assert!(app.dispatch(Action::Recover("key".into())).is_empty());
-    assert!(!app.state.busy);
+}
+
+/// The Reconnect button asks the backend to reconnect Discord, while signed
+/// in and not in the preview.
+#[test]
+fn reconnect_asks_the_backend_once_signed_in() {
+    let mut app = Application::default();
+    assert!(app.dispatch(Action::RetrySync).is_empty());
+    app = connected();
+    assert!(matches!(
+        app.dispatch(Action::RetrySync).as_slice(),
+        [Effect::Backend(Command::RetrySync)]
+    ));
+    app.state.busy = true;
+    assert!(app.dispatch(Action::RetrySync).is_empty());
 }

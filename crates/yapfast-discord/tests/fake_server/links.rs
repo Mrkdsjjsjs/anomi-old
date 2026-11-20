@@ -31,7 +31,7 @@ async fn joins_by_an_invite_as_discords_client_does(
             pages.push(page.to_owned());
             let page = page.to_owned();
             tokio::spawn(async move {
-                reqwest::Client::new()
+                yapfast_http::wreq::Client::new()
                     .post(page)
                     .body("solved")
                     .send()

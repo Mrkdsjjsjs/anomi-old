@@ -129,18 +129,11 @@ fn the_close_button_asks_to_close() {
 
 #[test]
 fn the_empty_list_says_why() {
-    for (vm, words) in [
-        (
-            sample::nothing_found(),
-            "We searched far and wide. Unfortunately, no results were found.",
-        ),
-        (
-            sample::nowhere(),
-            "There's nowhere to forward to yet. Yapfast forwards Matrix messages only into encrypted conversations.",
-        ),
-    ] {
-        assert!(simulate(&vm).find(words).is_ok(), "{words}");
-    }
+    let words = "We searched far and wide. Unfortunately, no results were found.";
+    assert!(
+        simulate(&sample::nothing_found()).find(words).is_ok(),
+        "{words}"
+    );
 }
 
 #[test]

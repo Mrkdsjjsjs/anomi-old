@@ -3,16 +3,20 @@
 Yapfast's Cargo workspace has the packages below, all in one process. The root `yapfast`
 package is the executable: the Slint adapter and the command-line entry point.
 [`crates/yapfast-core`](../crates/yapfast-core) holds application behavior and the
-native Matrix, Discord and voice backend.
+native Discord and voice backend. The fork carries no Matrix: the network
+the local preview's rooms use is still named `Network::Matrix`, and
+`Route::Matrix` carries signing out, which unlinks Discord.
 [`crates/yapfast-discord`](../crates/yapfast-discord) holds the Discord protocol:
-login, the gateway, the HTTP API and voice. [`crates/yapfast-ui`](../crates/yapfast-ui)
+login, the gateway, the HTTP API and voice.
+[`crates/yapfast-http`](../crates/yapfast-http) makes every HTTPS request
+and WebSocket, Discord's and the update check's, as one browser does; see
+[how Yapfast presents itself](discord/README.md#how-yapfast-presents-itself).
+[`crates/yapfast-ui`](../crates/yapfast-ui)
 compiles `ui/yapfast.slint` and the files it imports in its `build.rs`, so editing
 any `.slint` file rebuilds only that crate, and in a
 [live-preview build](building.md#seeing-the-app) nothing at all.
 [`crates/yapfast-lang`](../crates/yapfast-lang) holds the interface's languages
 and gives the others its text in the chosen one; see [translations](translations.md).
-[`crates/feature-union`](../crates/feature-union) holds no code; `scripts/check`
-uses it (see [building](building.md#checks)).
 
 The `crates/anomi-*` packages are a second interface on the same core,
 written with iced, which is to replace the Slint one screen by screen: the
@@ -25,7 +29,7 @@ flowchart LR
     UI[Slint widgets and Skia rendering] -->|Actions| App[Application model]
     App -->|State| UI
     App -->|Effects| Adapter[Client event loop]
-    Adapter -->|Commands| Backend[Discord, Matrix and voice backends]
+    Adapter -->|Commands| Backend[Discord and voice backends]
     Backend -->|Events| Adapter
     Adapter -->|Apply events| App
 ```
@@ -57,14 +61,10 @@ reads video files, `encode.rs` encodes Go Live and the camera, and
 `decode.rs` decodes a watched stream, each through C in `native/*.c`.
 `audio_io.rs` and `audio_io/` are Yapfast's own sound devices.
 
-`vendor/` holds patched Slint, webrtc-sys, matrix-rtc-livekit, davey and
+`vendor/` holds patched Slint, webrtc-sys, davey and
 tungstenite, plus x264's and FFmpeg's C source; see
 [dependency sources](building.md#dependency-sources). LiveKit itself comes
 from crates.io, not `vendor/`.
-
-Two experiments stay in the tree: `experiment.rs` behind `--call-experiment`
-and `voice_demo.rs` behind `--voice-demo`, both in yapfast-core and
-dispatched from `src/main.rs`.
 
 ## Shared application behavior
 
@@ -108,10 +108,10 @@ application can leave timelines meant for what showed before.
 `Command::Earlier` and `Command::Later` add a page at either end, and each
 `Event::HistoryLoaded` says whether the timeline reaches the room's first
 message and its newest. `Command::Present` shows the newest again: Discord
-keeps them beside the window, following live events, and Matrix rebuilds
-its live timeline from the SDK's event cache. Neither loads them again. The UI reports visible item ids, with six rows of margin on
+keeps them beside the window, following live events, and doesn't load them
+again. The UI reports visible item ids, with six rows of margin on
 each side, through `Action::VisibleMessages` and `Command::VisibleMessages`.
-Discord and Matrix download and decode previews for those items and release
+Discord downloads and decodes previews for those items and releases
 distant decoded handles. A report goes out at once after a quiet spell and at most every 50 ms
 while the view moves; reports reject old rooms,
 and refresh when temporary message ids become server event ids even if the
@@ -164,8 +164,7 @@ A visible change usually touches each of these steps:
    action to the module for its area in `crates/yapfast-core/src/application/`.
 5. **Backend.** An `Effect::Backend(Command)` goes through `Backend::send` to
    the chat actor in `crates/yapfast-core/src/chat.rs`, which routes it to the
-   network its room id names, or to voice. Matrix lives
-   in `matrix_chat.rs` and `matrix_voice.rs`; Discord in `discord.rs`,
+   network its room id names, or to voice. Discord lives in `discord.rs`,
    `discord_text.rs` with its modules in `discord_text/`, `discord_voice.rs`,
    `discord_audio.rs` and `discord_link.rs`, all under
    `crates/yapfast-core/src/`. The Discord protocol itself is in
@@ -206,17 +205,18 @@ change in who speaks: its participants and devices are shared lists
 (`Arc<[_]>`), which a change replaces rather than edits, so passing the state
 on copies only its few strings.
 
-The actor owns one Matrix session and its sync service. The voice controller
-leases that same client and encrypted store. Encryption and device trust checks
-remain authoritative in the backend. Explicit logout stops voice and sync before
-revoking the session; failed logout retains the account. Dropping the backend on
+The actor owns the linked Discord account's connection. Signing out unlinks
+Discord: it leaves the call, ends the session on Discord and forgets the
+login on this device. The Reconnect button (`Command::RetrySync`) asks the
+Discord service to connect at once where it waits after a lost connection;
+the cap on how often it identifies holds. Dropping the backend on
 the client thread ends its work without revoking saved credentials: it waits up
 to half a second for the actor to leave a call and close Discord's gateway,
 then cancels what's left ([Quitting during a
 call](discord/voice.md#quitting-during-a-call)).
 
 The core has no UI-framework dependency. Its native services still
-depend on Tokio, SQLite, OS credential storage and libwebrtc. A browser client
+depend on Tokio, OS credential storage and libwebrtc. A browser client
 will need platform implementations for those services. This split shares app
 behavior without claiming the native backend already runs on the web or Android.
 
@@ -237,11 +237,7 @@ implement their own drafts, send handling or voice lifecycle.
 
 ## Checks and packaging
 
-`scripts/check` checks the whole workspace, including the headless build
-(`--no-default-features --features matrix,discord`); see
-[building](building.md#checks). Ignored chat and voice tests belong to
+`scripts/check` checks the whole workspace; see
+[building](building.md#checks). Ignored audio and camera tests belong to
 `yapfast-core`, so select them with `cargo test -p yapfast-core`.
-
-Library tests keep disposable fixtures under the workspace's
-ignored `.local` directory even though Cargo runs them from the crate directory.
 Windows runtime checks are in the [Windows guide](windows-beta.md).

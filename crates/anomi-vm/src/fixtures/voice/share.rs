@@ -10,7 +10,8 @@ use crate::fixtures::pictures;
 use crate::menu::Spot;
 use crate::shell::Layer;
 use crate::voice::controls::MENU_SHIFT;
-use crate::voice::share::{Live, Part, Resolution, Screen, Share, Tab};
+use crate::voice::share::entry::Refusal;
+use crate::voice::share::{Entry, Live, Part, Resolution, Screen, Share, Tab};
 
 use super::super::shell;
 use super::controls;
@@ -84,6 +85,37 @@ pub fn tuned() -> Share {
         max_kbps: Some(6_000),
         high_quality: true,
         ..dialog()
+    }
+}
+
+/// With Settings' "Unlocked bitrate", 20 Mbit/s chosen: the gear's
+/// "Advanced" has the steps past 9 Mbit/s and "Custom value…".
+pub fn unlocked() -> Share {
+    Share {
+        max_kbps: Some(20_000),
+        unlocked: true,
+        ..tuned()
+    }
+}
+
+/// The limit typed by hand over the dialog, refused: 75 is past 50.
+pub fn typing() -> Share {
+    Share {
+        entry: Some(Entry {
+            text: "75".into(),
+            refused: Some(Refusal::OutOfRange),
+        }),
+        ..unlocked()
+    }
+}
+
+/// While live, a limit typed by hand, 20.5 Mbit/s, with the quality's
+/// submenu open.
+pub fn live_unlocked() -> Share {
+    Share {
+        max_kbps: Some(20_500),
+        unlocked: true,
+        ..live_quality()
     }
 }
 

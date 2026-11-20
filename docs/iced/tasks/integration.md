@@ -197,7 +197,7 @@ move. See [the index](../tasks.md).
 ### Q03 · Parity measurements (Opus · M)
 - **Owns:** `docs/measurements/` records for the iced interface.
 - **After:** I07, I14, I18.
-- **Done when:** idle, image-heavy channel, call and scrolling (`testing/measure_scroll.py`) measured for both interfaces on the same data, as `docs/measurements/README.md` asks; and a busy server (typing, presence, messages every second) behind another window, where every batch of events costs the iced interface a view and a layout: its CPU and wakeups against Slint's.
+- **Done when:** idle, image-heavy channel, call and scrolling (as `testing/measure_tray.py` scrolls) measured for both interfaces on the same data, as `docs/measurements/README.md` asks; and a busy server (typing, presence, messages every second) behind another window, where every batch of events costs the iced interface a view and a layout: its CPU and wakeups against Slint's.
 - **Upstream reference:** section Q03 of `~/.cache/anomi-iced/state/upstream-reference.md` (their code for this area, what carries over, the traps they hit).
 
 ### Q04 · The test session's commands (Opus · S)

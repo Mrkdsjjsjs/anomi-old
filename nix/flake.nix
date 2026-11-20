@@ -93,6 +93,10 @@
             bun cargo-nextest
             # Assembles x264's x86-64 code (vendor/x264-src).
             nasm
+            # btls-sys applies its patches to BoringSSL with git; it builds
+            # with cmake and clang, and renames its symbols with the nm and
+            # objcopy of stdenv's binutils (docs/building.md).
+            git
           ];
           buildInputs = libraries;
           # rustc links with its own rust-lld, which skips the Nix ld wrapper
@@ -118,8 +122,9 @@
             xvfb-run
             llvmPackages_21.clang llvmPackages_21.lld llvmPackages_21.llvm
             llvmPackages_21.libclang
-            # Assembles x264's x86-64 code (vendor/x264-src).
-            nasm
+            # Assembles x264's x86-64 code (vendor/x264-src), and BoringSSL's
+            # for Windows (btls-sys), which applies its patches with git.
+            nasm git
           ];
           CC = "clang";
           CXX = "clang++";

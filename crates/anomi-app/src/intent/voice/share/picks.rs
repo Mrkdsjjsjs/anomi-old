@@ -45,6 +45,14 @@ pub fn handle(app: &mut App, intent: Intent) -> Task<Message> {
             let spot = (app.vm.shell.opened(Layer::Share)).and_then(|opened| opened.at);
             return list(app, spot.unwrap_or_default());
         }
+        // The limit typed by hand, with the unlock.
+        Intent::CustomBitrate => return super::entry::open(app),
+        Intent::BitrateText(text) => {
+            super::entry::edit(app, text);
+            return Task::none();
+        }
+        Intent::ApplyBitrate => return super::entry::apply(app),
+        Intent::CancelBitrate => return super::entry::cancel(app),
         Intent::Stop => {
             let task = popups::close(app, Layer::Share);
             return Task::batch([task, command(app, Command::StopLive)]);
@@ -166,7 +174,9 @@ fn of(share: &Share) -> StreamQuality {
 }
 
 /// The core's quality for the menu's choices: the bitrate limit a ceiling
-/// within Discord's, `None` for Discord's alone.
+/// within Discord's, or past it with the unlock, `None` for Discord's
+/// alone; kept as chosen, so a limit past 9 Mbit/s isn't lost while the
+/// unlock is off.
 fn quality(
     resolution: Resolution,
     fps: u32,

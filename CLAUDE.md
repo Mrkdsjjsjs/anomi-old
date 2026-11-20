@@ -6,8 +6,7 @@
   `cargo test --profile fast -p yapfast-core history`; incremental builds take
   seconds. Run `scripts/check --fast` once, before the last commit of a piece
   of work, not before each commit. It enters the dev shell itself and checks
-  the default build, Discord on the desktop; `--matrix` adds the builds with
-  Matrix, for changes to code Matrix shares and before a release. It takes
+  the default build, Discord on the desktop. It takes
   about 40 s after a Rust edit and 4 minutes after a `.slint` edit, and
   prints each step's time. Its steps run one after another: each compile of the UI crate takes
   6–8 GiB of memory, and running them together ran the machine out of it.
@@ -33,7 +32,7 @@
   `calls_in_dms`), a second or so each. Run the whole suite, about 30 s, once
   before the last commit of work on `crates/yapfast-discord`,
   `discord_text` or `testing/fake_discord.ts`; `scripts/check` doesn't run
-  it. Matrix and LiveKit: `scripts/test-stack up`.
+  it.
 - Where code lives, and how a UI change flows from `ui/*.slint` to
   `application/`: `docs/architecture.md`. Shells, logging (`YAPFAST_LOG`, not
   `RUST_LOG`), dependency sources and media libraries: `docs/building.md`.

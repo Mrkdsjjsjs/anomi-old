@@ -8,8 +8,9 @@
 //! [`Saved::other`] and go back into the file as they came.
 //!
 //! Anomi's own keys, which the Slint app doesn't have (the processor's
-//! cores, what draws the interface, where streams encode, echo
-//! cancellation, the people whose voice is cleaned and the streams muted),
+//! cores, what draws the interface, where streams encode and their
+//! bitrate's unlock, echo cancellation, the people whose voice is cleaned
+//! and the streams muted),
 //! are written only once set, so a file the Slint app wrote reads and
 //! writes back unchanged; it keeps them through its own catch-all.
 
@@ -222,6 +223,10 @@ pub struct Saved {
     /// Go Live's "Hide stream preview" (its own stream's); written once set.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub hide_stream_preview: bool,
+    /// Settings' "Unlocked bitrate": a stream's bitrate limit may pass
+    /// Discord's documented 9 Mbit/s, up to 50; written once set.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub stream_bitrate_unlocked: bool,
     /// The processor's cores the program runs on; Auto unless chosen.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu_mode: Option<CpuChoice>,

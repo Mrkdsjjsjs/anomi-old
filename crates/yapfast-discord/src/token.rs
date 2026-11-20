@@ -1,6 +1,6 @@
-//! The Discord token lives in the OS credential store, next to Yapfast's Matrix
-//! session, and never in Matrix. So does the key [`crate::cache`] encrypts
-//! its files with.
+//! The Discord token lives in the OS credential store, under Yapfast's own
+//! service name, which stays as it is so a linked account is found again. So
+//! does the key [`crate::cache`] encrypts its files with.
 
 use std::sync::{Mutex, OnceLock};
 

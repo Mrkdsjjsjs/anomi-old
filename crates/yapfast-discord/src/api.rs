@@ -3,12 +3,16 @@
 use std::sync::RwLock;
 
 use anyhow::{Context, Result, anyhow, bail};
-use reqwest::{Client, Method, RequestBuilder, Response, StatusCode, header};
 use serde::Deserialize;
 use serde_json::{Value, json};
+use yapfast_http::{
+    Kind,
+    wreq::{self, Client, Method, RequestBuilder, Response, StatusCode, header},
+};
 use yapfast_lang::tr;
 
 use crate::{
+    browser,
     captcha::Captcha,
     client,
     limits::{self, Limits, Refusals, Stopped},
@@ -275,13 +279,14 @@ pub fn may_work_later(error: &anyhow::Error) -> bool {
                 )
         }
         None => {
-            error.downcast_ref::<reqwest::Error>().is_some()
+            error.downcast_ref::<wreq::Error>().is_some()
                 || error.downcast_ref::<Stalled>().is_some()
         }
     }
 }
 
 pub struct Api {
+    /// [`browser::discord`]'s client.
     http: Client,
     /// Empty without a login; Discord may refresh it in READY.
     token: RwLock<String>,
@@ -302,18 +307,11 @@ const DOWNLOADS: usize = 8;
 
 impl Api {
     pub fn new(token: String) -> Result<Self> {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-        let http = Client::builder()
-            .user_agent(client::user_agent())
-            .cookie_provider(crate::cookies::jar())
-            .connect_timeout(std::time::Duration::from_secs(15))
-            // Requests to a host share one HTTP/2 connection. While some are
-            // waiting, a ping that goes unanswered closes it, so the next
-            // request opens a new one rather than waiting on a lost one.
-            .http2_keep_alive_interval(std::time::Duration::from_secs(10))
-            .http2_keep_alive_timeout(std::time::Duration::from_secs(10))
-            .build()
-            .context("could not set up HTTPS")?;
+        // One client for the process (see browser.rs): requests to a host
+        // share one HTTP/2 connection, and while some are waiting, a ping
+        // that goes unanswered closes it, so the next request opens a new one
+        // rather than waiting on a lost one.
+        let http = browser::discord()?.clone();
         let base = match client::test_server() {
             Some(server) => format!("{server}/api/v9"),
             None => API.to_owned(),
@@ -345,15 +343,14 @@ impl Api {
             return;
         }
         let read = async {
-            let mut response = self
-                .http
-                .get(WEB_APP)
-                .header(header::ACCEPT, "text/html")
-                .send()
-                .await?
-                .error_for_status()?;
+            // As the browser loads it: an address typed into a tab.
+            let mut response =
+                yapfast_http::request(&self.http, Kind::Navigate, Method::GET, WEB_APP)
+                    .send()
+                    .await?
+                    .error_for_status()?;
             let mut page = Vec::new();
-            while let Some(chunk) = response.chunk().await? {
+            while let Some(chunk) = yapfast_http::chunk(&mut response).await? {
                 page.extend_from_slice(&chunk);
                 if client::learn_build_number(&page) || page.len() >= READ {
                     break;
@@ -375,15 +372,16 @@ impl Api {
     }
 
     fn request(&self, method: Method, path: &str) -> RequestBuilder {
-        // Only the API gets the client's description, as in the web client;
-        // it changes through a run, so each request makes it again. The
-        // web client sends its language and time zone with every request
-        // too, and a request without them looks less like it.
-        let request = self
-            .http
-            .request(method, format!("{}{path}", self.base))
+        // The browser's headers of a script's request from the web client's
+        // page, then the web client's own. Only the API gets the client's
+        // description, as in the web client; it changes through a run, so
+        // each request makes it again. The web client sends its language and
+        // time zone with every request too, and a request without them looks
+        // less like it. They go out in Firefox's order however they're added
+        // here (yapfast_http::ORDER).
+        let url = format!("{}{path}", self.base);
+        let request = yapfast_http::request(&self.http, browser::SCRIPT, method, &url)
             .header("X-Super-Properties", client::super_properties())
-            .header(header::ACCEPT_LANGUAGE, client::ACCEPT_LANGUAGE)
             .header("X-Discord-Locale", client::LOCALE);
         let request = match client::timezone() {
             Some(zone) => request.header("X-Discord-Timezone", zone),
@@ -461,9 +459,8 @@ impl Api {
     ) -> Result<GameList> {
         use tokio::io::AsyncWriteExt;
         const LIMIT: u64 = 32 * 1024 * 1024;
-        let mut request = self
-            .http
-            .get(format!("{}/detectables/games-v1.json", crate::ready::cdn()));
+        let url = format!("{}/detectables/games-v1.json", crate::ready::cdn());
+        let mut request = yapfast_http::request(&self.http, browser::SCRIPT, Method::GET, &url);
         if let Some(etag) = etag {
             request = request.header(header::IF_NONE_MATCH, etag);
         }
@@ -481,7 +478,7 @@ impl Api {
             .map(str::to_owned);
         let mut file = tokio::fs::File::from_std(file);
         let mut size = 0;
-        while let Some(chunk) = response.chunk().await? {
+        while let Some(chunk) = yapfast_http::chunk(&mut response).await? {
             size += chunk.len() as u64;
             if size > LIMIT {
                 bail!("game catalogue exceeds 32 MiB");
@@ -809,14 +806,14 @@ impl Api {
         ) else {
             bail!("could not understand Discord's answer");
         };
-        // The upload URL is signed, so it takes no login.
-        let response = self
-            .http
-            .put(url)
-            .body(data)
-            .send()
-            .await
-            .context(tr!("Can't reach Discord's file storage."))?;
+        // The upload URL is signed, so it takes no login, and it's Google's
+        // storage, not Discord, so it takes no cookie of Discord's either.
+        let response =
+            yapfast_http::request(yapfast_http::web()?, browser::SCRIPT, Method::PUT, url)
+                .body(data)
+                .send()
+                .await
+                .context(tr!("Can't reach Discord's file storage."))?;
         if !response.status().is_success() {
             bail!(tr!(
                 "Discord's file storage answered {}.",
@@ -2273,9 +2270,10 @@ impl Api {
             Some(to) => format!("bytes={from}-{}", to.saturating_sub(1)),
             None => format!("bytes={from}-"),
         };
-        let response = self
-            .send_file(self.http.get(url).header(header::RANGE, range))
-            .await?;
+        let request =
+            yapfast_http::request(self.client_for(url)?, browser::VIDEO, Method::GET, url)
+                .header(header::RANGE, range);
+        let response = self.send_file(request).await?;
         let (start, size) = if response.status() == StatusCode::PARTIAL_CONTENT {
             response
                 .headers()
@@ -2292,7 +2290,7 @@ impl Api {
         let chunks =
             futures_util::stream::unfold(Some((response, start)), move |state| async move {
                 let (mut response, at) = state?;
-                match tokio::time::timeout(stall, response.chunk()).await {
+                match tokio::time::timeout(stall, yapfast_http::chunk(&mut response)).await {
                     Err(_) => Some((Err(Stalled.into()), None)),
                     Ok(Err(error)) => Some((
                         Err(anyhow::Error::new(error).context("the download stopped")),
@@ -2315,9 +2313,23 @@ impl Api {
         })
     }
 
-    /// Asks for a file, giving up if Discord doesn't answer within [`STALL`].
+    /// Asks for a file as the web client's page shows a picture, giving up if
+    /// Discord doesn't answer within [`STALL`].
     async fn get_file(&self, url: &str) -> Result<Response> {
-        self.send_file(self.http.get(url)).await
+        let request =
+            yapfast_http::request(self.client_for(url)?, browser::IMAGE, Method::GET, url);
+        self.send_file(request).await
+    }
+
+    /// The client a file's request goes through: this one, with Discord's
+    /// cookies, for Discord's CDN, its media proxy and the test server, and
+    /// one without them for the GIF providers' and games' pictures.
+    fn client_for(&self, url: &str) -> Result<&Client> {
+        if discord_file(url) || test_file(url) {
+            Ok(&self.http)
+        } else {
+            yapfast_http::web()
+        }
     }
 
     /// Sends a request for a file as [`Self::get_file`] does.
@@ -2338,7 +2350,7 @@ impl Api {
         &self,
         response: &mut Response,
     ) -> Result<Option<impl std::ops::Deref<Target = [u8]>>> {
-        tokio::time::timeout(self.stall, response.chunk())
+        tokio::time::timeout(self.stall, yapfast_http::chunk(response))
             .await
             .map_err(|_| Stalled)?
             .context("the download stopped")
@@ -2368,7 +2380,7 @@ impl Api {
     async fn send_request(&self, request: RequestBuilder, again: bool) -> Result<Response> {
         let (client, request) = request.build_split();
         let mut request = request.context("could not build the request")?;
-        let route = limits::route(request.method(), request.url().path());
+        let route = limits::route(request.method(), request.uri().path());
         let mut retried = !again;
         loop {
             match self.refusals.check() {
@@ -2734,17 +2746,21 @@ fn encode(segment: &str) -> String {
 /// Refuses a file from anywhere but Discord's CDN and media proxy, the GIF
 /// providers and games' pictures, or the test server.
 fn allowed(url: &str) -> Result<()> {
-    let test_file = client::test_server()
-        .and_then(|server| url.strip_prefix(server))
-        .is_some_and(|path| path.starts_with('/'));
     if !discord_file(url)
-        && !test_file
+        && !test_file(url)
         && !crate::gifs::provider_media(url)
         && !crate::activity::outside_picture(url)
     {
         bail!("not a Discord file");
     }
     Ok(())
+}
+
+/// Whether `url` is on the test server.
+fn test_file(url: &str) -> bool {
+    client::test_server()
+        .and_then(|server| url.strip_prefix(server))
+        .is_some_and(|path| path.starts_with('/'))
 }
 
 /// Whether `url` is on Discord's CDN or its media proxy, which serves
@@ -3028,5 +3044,43 @@ mod tests {
         assert!(!Refused(StatusCode::FORBIDDEN).rate_limited());
         assert!(Refused(StatusCode::NOT_FOUND).gone());
         assert!(!Refused(StatusCode::TOO_MANY_REQUESTS).gone());
+    }
+
+    /// An API request carries the browser's headers and the web client's
+    /// description of that same browser, each header once and each with its
+    /// place in Firefox's order, so none goes out of it.
+    #[tokio::test]
+    async fn api_requests_describe_the_browser_they_come_from() {
+        use base64::Engine;
+        let mut api = super::Api::new("token".to_owned()).unwrap();
+        // Discord's, even with a test server set.
+        api.base = super::API.to_owned();
+        let request = super::with_json(
+            api.request(super::Method::POST, "/channels/1/messages"),
+            &serde_json::json!({}),
+        )
+        .header("X-Context-Properties", super::context("forwarding"));
+        let request = super::audit_reason(request, "spam").build().unwrap();
+        let headers = request.headers();
+        assert_eq!(headers.len(), headers.keys_len(), "a header goes twice");
+        for name in headers.keys() {
+            assert!(
+                yapfast_http::ORDER
+                    .iter()
+                    .any(|placed| placed.eq_ignore_ascii_case(name.as_str())),
+                "{name} has no place in yapfast_http::ORDER"
+            );
+        }
+        let agent = headers["user-agent"].to_str().unwrap();
+        let described = base64::engine::general_purpose::STANDARD
+            .decode(headers["x-super-properties"].as_bytes())
+            .unwrap();
+        let described: serde_json::Value = serde_json::from_slice(&described).unwrap();
+        assert_eq!(described["browser_user_agent"], agent);
+        assert_eq!(agent, crate::client::user_agent());
+        assert_eq!(headers["origin"], "https://discord.com");
+        assert_eq!(headers["referer"], crate::browser::PAGE);
+        assert_eq!(headers["sec-fetch-site"], "same-origin");
+        assert_eq!(headers["authorization"], "token");
     }
 }

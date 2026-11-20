@@ -50,6 +50,7 @@ mod join;
 mod participant_menu;
 mod pip;
 mod share;
+mod share_bitrate;
 mod snapshots;
 mod soundboard;
 mod stage;

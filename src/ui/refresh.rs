@@ -531,8 +531,6 @@ impl Adapter {
             window.set_filter(SharedString::default());
         }
         if changes.reset {
-            window.set_password(SharedString::default());
-            window.set_recovery(SharedString::default());
             window.set_settings_open(false);
         }
         self.show_workspace(window);
@@ -585,8 +583,6 @@ impl Adapter {
         } else if self.focus_when_ready && state.room_ready {
             self.focus_when_ready = false;
             window.invoke_focus_composer();
-        } else if changes.reset && !state.preview && state.account.is_none() {
-            window.invoke_focus_sign_in();
         }
         self.navigation = state.navigation.clone();
         self.selection_version = state.selection_version;
@@ -963,7 +959,6 @@ impl Adapter {
         window.set_workspace(workspace);
         window.set_preview(state.preview);
         window.set_busy(state.busy);
-        window.set_trusted(state.trusted);
         window.set_forward_allowed(
             state.preview
                 || state.trusted
@@ -973,11 +968,6 @@ impl Adapter {
                     .is_some_and(|room| Network::of(room) == Network::Discord),
         );
         window.set_online(state.online);
-        // Only the sign-in screen offers it, and finding out reads the OS
-        // credential store or the disk.
-        if !workspace {
-            window.set_restore_available(yapfast_core::chat::can_restore(&self.root));
-        }
         window.set_dms_selected(state.navigation == Navigation::DirectMessages);
         window.set_dms_unread(
             state
@@ -1003,10 +993,9 @@ impl Adapter {
             state.discord_linked || state.servers.iter().any(|server| server.discord),
         );
         window.set_discord_build(cfg!(feature = "discord"));
-        window.set_matrix_build(cfg!(feature = "matrix"));
-        // Without Matrix, the account's dot is its Discord status.
+        // The account's dot is its Discord status.
         window.set_account_presence(
-            if cfg!(feature = "matrix") || state.preview {
+            if state.preview {
                 ""
             } else if !state.discord_online {
                 "offline"
@@ -1499,11 +1488,18 @@ impl Adapter {
             }
             _ => rows,
         };
-        window.set_sidebar_empty(if !rows.is_empty() { "" }
-            else if state.scoped_rooms().next().is_some() { tr!("No matching conversations.") }
-            else if state.navigation == Navigation::DirectMessages { tr!("No direct messages yet. Existing DMs appear here after syncing.") }
-            else if state.servers.iter().any(|server| server.discord && state.navigation == Navigation::Server(server.id.clone())) { tr!("No channels in this server that you can see.") }
-            else { tr!("No joined channels in this server. Join a channel in another Matrix client to see it here.") }.into());
+        window.set_sidebar_empty(
+            if !rows.is_empty() {
+                ""
+            } else if state.scoped_rooms().next().is_some() {
+                tr!("No matching conversations.")
+            } else if state.navigation == Navigation::DirectMessages {
+                tr!("No direct messages yet. Existing DMs appear here after syncing.")
+            } else {
+                tr!("No channels in this server that you can see.")
+            }
+            .into(),
+        );
         // A Discord server's channels and categories drag to move, by their
         // places in the list: each category, and each channel that shows
         // outside a collapsed one, as Discord's client lists them to drop
@@ -3592,22 +3588,14 @@ impl Adapter {
             })
             .collect();
         window.set_new_dm_note(match new_dm {
-            Some(NewDm { error: Some(error), .. }) => error.as_str().into(),
+            Some(NewDm {
+                error: Some(error), ..
+            }) => error.as_str().into(),
             Some(NewDm { starting: true, .. }) => tr!("Starting the conversation...").into(),
             Some(new_dm) if people.is_empty() && new_dm.query.trim().is_empty() => {
-                if cfg!(feature = "matrix") {
-                    tr!("Type a name to find people you know on Discord, or a full Matrix id such as @name:example.org.")
-                } else {
-                    tr!("Type a name to find people you know on Discord.")
-                }
-                .into()
+                tr!("Type a name to find people you know on Discord.").into()
             }
-            Some(_) if people.is_empty() => if cfg!(feature = "matrix") {
-                tr!("No one found. For Matrix, type a full id such as @name:example.org.")
-            } else {
-                tr!("No one found.")
-            }
-            .into(),
+            Some(_) if people.is_empty() => tr!("No one found.").into(),
             _ => SharedString::default(),
         });
         update_model(&self.models.new_dm_people, people);
@@ -3644,12 +3632,10 @@ impl Adapter {
         let discord =
             forwarding.is_some_and(|forwarding| Network::of(&forwarding.room) == Network::Discord);
         window.set_forward_empty(
-            if discord {
+            if discord || query.is_empty() {
                 tr!("We searched far and wide. Unfortunately, no results were found.")
-            } else if !query.is_empty() {
-                tr!("No conversations match.")
             } else {
-                tr!("There's nowhere to forward to yet. Yapfast forwards Matrix messages only into encrypted conversations.")
+                tr!("No conversations match.")
             }
             .into(),
         );
@@ -4054,9 +4040,6 @@ impl Adapter {
         window.set_detached(state.detached);
         window.set_loading_later(state.loading_later);
         window.set_later_failed(state.later_failed);
-        // Without Matrix everything is Discord, so the encryption and key hints
-        // say nothing new; what stops sending still shows.
-        let discord_only = !cfg!(feature = "matrix");
         let timed_out = room
             .and_then(|room| room.timed_out_until)
             .filter(|_| discord_room)
@@ -4077,17 +4060,12 @@ impl Adapter {
         window.set_composer_locked_text(
             tr!("You do not have permission to send messages in this channel.").into(),
         );
+        // Everything is Discord, so the hint says only what stops sending.
         window.set_composer_hint(
             if room.is_none() {
                 tr!("Choose a DM or server channel to write a message.")
-            } else if state.preview {
+            } else if state.preview || room.is_some_and(|room| room.request) {
                 ""
-            } else if room.is_some_and(|room| room.request) {
-                if discord_only {
-                    ""
-                } else {
-                    tr!("Discord · not end-to-end encrypted.")
-                }
             } else if let Some(timed_out) = &timed_out {
                 timed_out
             } else if no_permission {
@@ -4096,18 +4074,8 @@ impl Adapter {
                 tr!("You can't send messages in this Discord channel.")
             } else if discord_room && !state.discord_online {
                 tr!("Discord is disconnected. Yapfast is reconnecting.")
-            } else if discord_only {
-                ""
-            } else if discord_room {
-                tr!(
-                    "Discord · not end-to-end encrypted. Enter to send, Shift+Enter for a new line."
-                )
-            } else if !state.trusted {
-                tr!("Sending is locked until this device is verified.")
-            } else if room.is_some_and(|room| room.encrypted) {
-                tr!("End-to-end encrypted. Enter to send, Shift+Enter for a new line.")
             } else {
-                tr!("Unencrypted room. Reading only in this build.")
+                ""
             }
             .into(),
         );

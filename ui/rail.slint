@@ -1014,8 +1014,6 @@ export component ServerRail inherits Rectangle {
     /// DM mentions and incoming friend requests, as a badge on the DM home.
     in property <string> dms-badge;
     in property <[ServerRow]> servers;
-    /// Without Matrix every server is Discord's, so names don't say so.
-    in property <bool> matrix-build: true;
     callback navigate-dms;
     callback navigate-server(string);
     callback toggle-folder(string);
@@ -1077,9 +1075,9 @@ export component ServerRail inherits Rectangle {
                 if server.dm: RailItem {
                     y: 0px;
                     initial: server.initial; picture-url: server.picture-url;
-                    label: server.name + (server.discord && root.matrix-build ? ", Discord" : "")
+                    label: server.name
                         + (server.badge != "" ? @tr(", {} unread", server.badge) : @tr(", unread"));
-                    tip: server.discord && root.matrix-build ? @tr("{} (Discord)", server.name) : server.name;
+                    tip: server.name;
                     unread: true; badge: server.badge; discord: server.discord;
                     clicked => { root.open-dm(server.id); }
                     context-menu(x, y) => { root.open-server-menu(server.id, x, y); }
@@ -1087,10 +1085,10 @@ export component ServerRail inherits Rectangle {
                 if !server.folder && !server.dm && !server.divider: RailItem {
                     y: 0px;
                     initial: server.initial; picture: server.picture; picture-url: server.picture-url;
-                    label: server.name + (server.discord && root.matrix-build ? ", Discord" : "") + (server.unavailable ? @tr(", unavailable") : "")
+                    label: server.name + (server.unavailable ? @tr(", unavailable") : "")
                         + (server.call ? @tr(", in a call") : "")
                         + (server.badge != "" ? @tr(", {} mentions", server.badge) : server.unread ? @tr(", unread") : "");
-                    tip: server.unavailable ? @tr("{} (unavailable in a Discord outage)", server.name) : server.discord && root.matrix-build ? @tr("{} (Discord)", server.name) : server.name;
+                    tip: server.unavailable ? @tr("{} (unavailable in a Discord outage)", server.name) : server.name;
                     selected: server.selected; unread: server.unread; badge: server.badge; discord: server.discord;
                     call: server.call;
                     opacity: server.unavailable ? 0.5 : 1;

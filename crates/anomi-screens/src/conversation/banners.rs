@@ -1,7 +1,6 @@
 //! What the conversation says at its top, above whatever the place shows:
-//! the local preview's line (`ui/yapfast.slint:3453`), the unverified
-//! device's `VerifyBanner` (`:3464`, N09's), the graphics notice and the
-//! notice, each with Dismiss (`:3469`, `:3470`, F13's `banner`).
+//! the local preview's line (`ui/yapfast.slint:3453`), the graphics notice
+//! and the notice, each with Dismiss (`:3469`, `:3470`, F13's `banner`).
 
 use iced::widget::{Column, container, row, text};
 use iced::{Alignment, Background, Fill};
@@ -24,10 +23,6 @@ pub fn view(vm: &Vm, motion: Motion) -> impl View<Intent> + '_ {
     let mut banners: Column<Element<'_, Intent>> = Column::new().width(Fill);
     if vm.conversation.preview {
         banners = banners.push(preview().boxed());
-    }
-    if !vm.conversation.preview && vm.sign_in.verify.unverified {
-        let verify = crate::sign_in::verify_banner(&vm.sign_in.verify, motion);
-        banners = banners.push(verify.map(Intent::from).boxed());
     }
     if let Some(notice) = &vm.sign_in.graphics_notice {
         let dismiss = Intent::SignIn(sign_in::Intent::DismissNotice);

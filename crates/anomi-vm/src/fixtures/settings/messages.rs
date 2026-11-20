@@ -15,7 +15,6 @@ pub fn page() -> Messages {
         share_typing: true,
         reply_ping: true,
         strip_tracking: true,
-        discord: true,
         ..Messages::default()
     }
 }
@@ -40,7 +39,6 @@ pub fn compact() -> Messages {
         twelve_hour: true,
         seconds: true,
         text_size: TextSize::Large,
-        matrix: true,
         ..page()
     }
 }

@@ -70,20 +70,11 @@ msgstr "Done. You can close this page and go back to Anomi."
 msgid "For a message that notifies while Yapfast isn't in front. The window's title counts mentions and DMs waiting either way."
 msgstr "For a message that notifies while Anomi isn't in front. The window's title counts mentions and DMs waiting either way."
 
-msgid "For new messages while Yapfast isn't in front. Each Discord server's notification settings and your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation."
-msgstr "For new messages while Anomi isn't in front. Each Discord server's notification settings and your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation."
-
 msgid "For new messages while Yapfast isn't in front. Each Discord server's notification settings decide which: usually DMs and mentions. Clicking one opens the conversation."
 msgstr "For new messages while Anomi isn't in front. Each Discord server's notification settings decide which: usually DMs and mentions. Clicking one opens the conversation."
 
-msgid "For new messages while Yapfast isn't in front. Your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation."
-msgstr "For new messages while Anomi isn't in front. Your Matrix notification rules decide which: usually DMs and mentions. Clicking one opens the conversation."
-
 msgid "Hardware acceleration. Off, Yapfast draws on the processor, which uses about half the memory."
 msgstr "Hardware acceleration. Off, Anomi draws on the processor, which uses about half the memory."
-
-msgid "Invalid calling-service URL. Check Yapfast's configuration."
-msgstr "Invalid calling-service URL. Check Anomi's configuration."
 
 msgid "Leaving Yapfast"
 msgstr "Leaving Anomi"
@@ -133,17 +124,8 @@ msgstr "That isn't a stream Anomi knows how to watch."
 msgid "The connection has stopped. Restart Yapfast to restore your session."
 msgstr "The connection has stopped. Restart Anomi to restore your session."
 
-msgid "There's nowhere to forward to yet. Yapfast forwards Matrix messages only into encrypted conversations."
-msgstr "There's nowhere to forward to yet. Anomi forwards Matrix messages only into encrypted conversations."
-
 msgid "This app opens a page Yapfast can't show. Use it in Discord."
 msgstr "This app opens a page Anomi can't show. Use it in Discord."
-
-msgid "This build of Yapfast has no Matrix sign-in."
-msgstr "This build of Anomi has no Matrix sign-in."
-
-msgid "This build of Yapfast has no Matrix voice."
-msgstr "This build of Anomi has no Matrix voice."
 
 msgid "This build of Yapfast has no networks."
 msgstr "This build of Anomi has no networks."
@@ -151,35 +133,14 @@ msgstr "This build of Anomi has no networks."
 msgid "This channel is unencrypted. Yapfast only joins encrypted voice channels."
 msgstr "This channel is unencrypted. Anomi only joins encrypted voice channels."
 
-msgid "This file is larger than Yapfast saves."
-msgstr "This file is larger than Anomi saves."
-
 msgid "This form has a part Yapfast can't fill yet. Use it in Discord."
 msgstr "This form has a part Anomi can't fill yet. Use it in Discord."
-
-msgid "This homeserver doesn't support sticky events (MSC4354), which Yapfast voice channels need. Ask its administrator to enable them (Synapse: experimental_features.msc4354_enabled), or use another homeserver."
-msgstr "This homeserver doesn't support sticky events (MSC4354), which Anomi voice channels need. Ask its administrator to enable them (Synapse: experimental_features.msc4354_enabled), or use another homeserver."
-
-msgid "this session was written by an unsupported Yapfast version"
-msgstr "this session was written by an unsupported Anomi version"
-
-msgid "Unlinking signs Yapfast out of Discord on this computer."
-msgstr "Unlinking signs Anomi out of Discord on this computer."
-
-msgid "Unverified device. It can't receive your audio key, and Yapfast refuses its key."
-msgstr "Unverified device. It can't receive your audio key, and Anomi refuses its key."
-
-msgid "Use your Matrix recovery key, or verify Yapfast in another client and check again."
-msgstr "Use your Matrix recovery key, or verify Anomi in another client and check again."
 
 msgid "While Yapfast is focused"
 msgstr "While Anomi is focused"
 
 msgid "Windows didn't let Yapfast watch keys in other apps"
 msgstr "Windows didn't let Anomi watch keys in other apps"
-
-msgid "Yapfast calls require an encrypted room; upgrade encryption explicitly first"
-msgstr "Anomi calls require an encrypted room; upgrade encryption explicitly first"
 
 msgid "Yapfast can't fill this option yet"
 msgstr "Anomi can't fill this option yet"
@@ -214,47 +175,20 @@ msgstr "Anomi can't write to its own folder."
 msgid "Yapfast can't write to the AppImage's folder."
 msgstr "Anomi can't write to the AppImage's folder."
 
-msgid "Yapfast could not download or decrypt this file. Check your connection and retry."
-msgstr "Anomi could not download or decrypt this file. Check your connection and retry."
-
-msgid "Yapfast could not find the message to reply to."
-msgstr "Anomi could not find the message to reply to."
-
 msgid "Yapfast could not open a file dialog."
 msgstr "Anomi could not open a file dialog."
-
-msgid "Yapfast could not queue that file. Check that it is readable and retry."
-msgstr "Anomi could not queue that file. Check that it is readable and retry."
-
-msgid "Yapfast could not queue the forwarded message. Check your connection and retry."
-msgstr "Anomi could not queue the forwarded message. Check your connection and retry."
-
-msgid "Yapfast could not queue the message you added. Check your connection."
-msgstr "Anomi could not queue the message you added. Check your connection."
-
-msgid "Yapfast could not queue this message. Your draft is kept."
-msgstr "Anomi could not queue this message. Your draft is kept."
 
 msgid "Yapfast could not read a file."
 msgstr "Anomi could not read a file."
 
-msgid "Yapfast could not read that file."
-msgstr "Anomi could not read that file."
-
 msgid "Yapfast could not read {}."
 msgstr "Anomi could not read {}."
-
-msgid "Yapfast could not write the file there. Choose another folder."
-msgstr "Anomi could not write the file there. Choose another folder."
 
 msgid "Yapfast couldn't copy this picture. Save it instead."
 msgstr "Anomi couldn't copy this picture. Save it instead."
 
 msgid "Yapfast couldn't download this image from Discord. Try again."
 msgstr "Anomi couldn't download this image from Discord. Try again."
-
-msgid "Yapfast couldn't download this image. Check your connection and try again."
-msgstr "Anomi couldn't download this image. Check your connection and try again."
 
 msgid "Yapfast couldn't download this voice message."
 msgstr "Anomi couldn't download this voice message."

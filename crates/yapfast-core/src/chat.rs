@@ -1,7 +1,6 @@
-//! The desktop owns presentation; this task owns the networks and voice.
-//! Matrix and Discord are Cargo features, so a build carries either or both.
-//! Each network runs in its own module beside this one: `matrix_chat` and
-//! `discord_text`. This module routes the UI's commands to them.
+//! The desktop owns presentation; this task owns the network and voice.
+//! Discord is a Cargo feature and runs in its own module beside this one,
+//! `discord_text`. This module routes the UI's commands to it and to voice.
 use std::{collections::HashMap, num::NonZeroU64, path::PathBuf, sync::Arc};
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -2321,11 +2320,6 @@ pub enum Direction {
 
 pub enum Start {
     Restore,
-    Login {
-        homeserver: String,
-        username: String,
-        password: String,
-    },
 }
 
 /// How a message goes, besides what it says.
@@ -2501,7 +2495,7 @@ pub enum Command {
     PauseVoiceMessage,
     /// Play the voice message playing as fast and loud as this says.
     TuneVoiceMessage(VoiceTuning),
-    /// Look for people to start a DM with; each network answers with
+    /// Look for people to start a DM with; Discord answers with
     /// [`Event::People`].
     FindPeople {
         query: String,
@@ -2562,8 +2556,8 @@ pub enum Command {
         items: Vec<String>,
         at_end: bool,
     },
-    Recover(String),
-    RefreshTrust,
+    /// Connect to Discord again now, where its connection was lost and it
+    /// waits to reconnect, as the Reconnect button asks.
     RetrySync,
     Logout,
 }
@@ -4232,10 +4226,9 @@ impl Command {
             Command::PreviewDensity(_) => Route::Discord,
             Command::StartDm { discord: true, .. } => Route::Discord,
             Command::StartDm { discord: false, .. } => Route::Matrix,
-            // Signing out of a build without Matrix unlinks Discord instead.
-            Command::Recover(_) | Command::RefreshTrust | Command::RetrySync | Command::Logout => {
-                Route::Matrix
-            }
+            Command::RetrySync => Route::Discord,
+            // Signing out unlinks Discord.
+            Command::Logout => Route::Matrix,
         }
     }
 }
@@ -4409,10 +4402,9 @@ pub enum Event {
         color: Option<u32>,
         members: Vec<ChatMember>,
     },
-    /// People to start a DM with, from Discord or from Matrix.
+    /// People on Discord to start a DM with.
     People {
         query: String,
-        discord: bool,
         people: Vec<Contact>,
     },
     /// The DM [`Command::StartDm`] asked for, by room id, or why it couldn't start.
@@ -4900,10 +4892,6 @@ pub enum Event {
     /// The picture [`Command::CopyAttachment`] downloaded: the file as it
     /// came, for the clipboard; or why it couldn't.
     Copied(Result<Vec<u8>, &'static str>),
-    Trust {
-        trusted: bool,
-        error: Option<&'static str>,
-    },
     Sync(bool),
     Error(String),
     LoggedOut,
@@ -4919,13 +4907,13 @@ pub fn sort_members(members: &mut [ChatMember]) {
 }
 
 /// Decode an image with dimension and allocation limits, then shrink it for the timeline.
-#[cfg(any(feature = "matrix", test))]
+#[cfg(test)]
 pub(crate) fn decode_preview(data: &[u8]) -> Option<Picture> {
     decode_picture(data, PREVIEW_WIDTH, PREVIEW_HEIGHT)
 }
 
 /// Decode an image for the viewer, shrunk to fit a large window.
-#[cfg(any(feature = "matrix", test))]
+#[cfg(test)]
 pub(crate) fn decode_view(data: &[u8]) -> Option<Picture> {
     decode_picture(data, VIEW_WIDTH, VIEW_HEIGHT)
 }
@@ -5365,22 +5353,14 @@ pub fn notification_text(markdown: &str) -> String {
     }
 }
 
-/// Whether Yapfast can start without the sign-in screen: with a saved Matrix
-/// session, or always in a build without Matrix, where Discord uses the
-/// account linked on this device.
+/// Whether Yapfast can start without the sign-in screen: with the Discord
+/// account linked on this device, or always in a build without Discord.
 pub fn can_restore(root: &std::path::Path) -> bool {
-    #[cfg(feature = "matrix")]
-    return root.join("active.json").exists();
-    #[cfg(all(not(feature = "matrix"), feature = "discord"))]
-    return {
-        let _ = root;
-        yapfast_discord::token::load().is_ok()
-    };
-    #[cfg(not(any(feature = "matrix", feature = "discord")))]
-    {
-        let _ = root;
-        true
-    }
+    let _ = root;
+    #[cfg(feature = "discord")]
+    return yapfast_discord::token::load().is_ok();
+    #[cfg(not(feature = "discord"))]
+    true
 }
 
 /// A new message that should notify the person, by their notification settings on its
@@ -5418,8 +5398,6 @@ pub struct Alert {
 enum Wake {
     Command(Option<Command>),
     Voice(bool),
-    #[cfg(feature = "matrix")]
-    Matrix(crate::matrix_chat::Wake),
     #[cfg(feature = "discord")]
     Discord(crate::discord_text::Wake),
 }
@@ -5431,14 +5409,6 @@ pub async fn run(
     events: UnboundedSender<Event>,
 ) {
     let remembered = root.join(voice::DEVICES);
-    #[cfg(feature = "matrix")]
-    let session = match crate::matrix_chat::open(root, start).await {
-        Ok(session) => session,
-        Err(error) => {
-            let _ = events.send(Event::Error(error.to_string()));
-            return;
-        }
-    };
     // Discord connects when this device has a linked account; see docs/discord/README.md.
     // Why a linked account isn't running answers the commands that need it.
     #[cfg(feature = "discord")]
@@ -5452,29 +5422,23 @@ pub async fn run(
     #[cfg(feature = "discord")]
     let linked =
         tokio::sync::watch::Sender::new(discord.as_ref().map(crate::discord_text::Chat::service));
-    #[cfg(not(feature = "matrix"))]
-    {
-        let refused = match start {
-            Start::Login { .. } => Some(tr!("This build of Yapfast has no Matrix sign-in.")),
-            #[cfg(feature = "discord")]
-            Start::Restore if discord.is_none() => Some(
-                discord_error
-                    .as_deref()
-                    .unwrap_or(tr!("Link your Discord account to sign in.")),
-            ),
-            #[cfg(not(feature = "discord"))]
-            Start::Restore => Some(tr!("This build of Yapfast has no networks.")),
-            #[allow(unreachable_patterns)]
-            _ => None,
-        };
-        if let Some(refused) = refused {
-            let _ = events.send(Event::Error(refused.into()));
-            return;
-        }
+    let refused = match start {
+        #[cfg(feature = "discord")]
+        Start::Restore if discord.is_none() => Some(
+            discord_error
+                .as_deref()
+                .unwrap_or(tr!("Link your Discord account to sign in.")),
+        ),
+        #[cfg(not(feature = "discord"))]
+        Start::Restore => Some(tr!("This build of Yapfast has no networks.")),
+        #[cfg(feature = "discord")]
+        Start::Restore => None,
+    };
+    if let Some(refused) = refused {
+        let _ = events.send(Event::Error(refused.into()));
+        return;
     }
     let calls = voice::Calls {
-        #[cfg(feature = "matrix")]
-        session: session.lease(),
         #[cfg(feature = "discord")]
         discord: linked.subscribe(),
     };
@@ -5484,13 +5448,10 @@ pub async fn run(
         ));
         return;
     };
-    #[cfg(feature = "matrix")]
-    let mut matrix = crate::matrix_chat::Matrix::connect(session, &events).await;
     #[cfg(feature = "discord")]
     if let Some(error) = &discord_error {
         let _ = events.send(Event::Error(error.clone()));
     }
-    #[cfg(not(feature = "matrix"))]
     let _ = events.send(Event::Connected {
         user: "Discord".into(),
         trusted: true,
@@ -5499,14 +5460,8 @@ pub async fn run(
 
     // The actor waits on network events rather than polling the account or the UI.
     loop {
-        #[cfg(feature = "matrix")]
-        matrix.restart_sync(&events).await;
         let wake = {
-            // Each network's wait is cancel safe, and handling happens outside it.
-            #[cfg(feature = "matrix")]
-            let matrix_wake = async { Wake::Matrix(matrix.wait().await) };
-            #[cfg(not(feature = "matrix"))]
-            let matrix_wake = std::future::pending::<Wake>();
+            // Discord's wait is cancel safe, and handling happens outside it.
             #[cfg(feature = "discord")]
             let discord_wake = async {
                 match discord.as_mut() {
@@ -5519,7 +5474,6 @@ pub async fn run(
             tokio::select! {
                 command = commands.recv() => Wake::Command(command),
                 changed = voice.states.changed(), if voice.states.has_changed().is_ok() => Wake::Voice(changed.is_ok()),
-                wake = matrix_wake => wake,
                 wake = discord_wake => wake,
             }
         };
@@ -5546,12 +5500,10 @@ pub async fn run(
                 Route::Every => {
                     #[cfg(feature = "discord")]
                     if let Some(discord) = discord.as_mut() {
-                        discord.command(command.clone(), &events);
+                        discord.command(command, &events);
                     }
-                    #[cfg(feature = "matrix")]
-                    if !matrix.command(command, &mut voice, &events).await {
-                        break;
-                    }
+                    #[cfg(not(feature = "discord"))]
+                    let _ = command;
                 }
                 #[cfg(feature = "discord")]
                 Route::Discord => match command {
@@ -5594,13 +5546,7 @@ pub async fn run(
                         ),
                     },
                 },
-                #[cfg(feature = "matrix")]
-                Route::Matrix => {
-                    if !matrix.command(command, &mut voice, &events).await {
-                        break;
-                    }
-                }
-                #[cfg(not(feature = "matrix"))]
+                // The account's: signing out unlinks Discord.
                 Route::Matrix => {
                     if let Command::Logout = command {
                         #[cfg(feature = "discord")]
@@ -5618,8 +5564,6 @@ pub async fn run(
                     let _ = events.send(Event::Voice(voice.states.borrow_and_update().clone()));
                 }
             }
-            #[cfg(feature = "matrix")]
-            Wake::Matrix(wake) => matrix.handle(wake, &voice, &events).await,
             #[cfg(feature = "discord")]
             Wake::Discord(wake) => {
                 if let Some(discord) = discord.as_mut() {
@@ -5637,8 +5581,6 @@ pub async fn run(
         discord.service().shut_down().await;
     }
     voice.stop().await;
-    #[cfg(feature = "matrix")]
-    matrix.stop().await;
 }
 
 /// Logs why Discord couldn't start, and says so as the person sees it.
@@ -5797,6 +5739,8 @@ mod tests {
                 Route::Matrix,
             ),
             (Command::Voice(voice::Command::Leave), Route::Voice),
+            // Reconnect is Discord's; signing out unlinks it.
+            (Command::RetrySync, Route::Discord),
             (Command::Logout, Route::Matrix),
         ] {
             assert_eq!(command.route(), route);

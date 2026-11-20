@@ -21,13 +21,20 @@
 //! ([`Live`]); a right click on one's own stream's tile opens Discord's
 //! menu of it (`anomi_voice::share::own_menu`). "Change Windows" opens the
 //! dialog again, to switch.
+//!
+//! With Settings' "Unlocked bitrate" the limit's steps go past Discord's
+//! documented 9 Mbit/s, and "Custom value…" opens a small dialog in the
+//! same layer, in place of the dialog or the menu it came from, to type a
+//! limit from 1 to 50 Mbit/s ([`entry`]).
 
+pub mod entry;
 mod live;
 
 use iced::widget::image;
 
 use crate::menu::{Key, Row, Spot};
 
+pub use entry::Entry;
 pub use live::{Live, Part};
 
 /// A screen in the dialog, and once it's been glanced at, a picture of it
@@ -62,6 +69,13 @@ pub const FRAME_RATES: [u32; 3] = [15, 30, 60];
 /// Discord takes above 720p, 1440p's too. A limit, not a target: the stream
 /// still goes lower as the network asks.
 pub const BITRATES: [u32; 6] = [2_000, 3_500, 5_000, 6_000, 8_000, 9_000];
+/// The steps past them that the unlock adds, in kbit/s.
+pub const UNLOCKED_BITRATES: [u32; 5] = [12_000, 15_000, 20_000, 30_000, 50_000];
+/// The most a limit counts as without the unlock, in kbit/s: the core's
+/// `voice::DOCUMENTED_KBPS`.
+pub const DOCUMENTED_KBPS: u32 = 9_000;
+/// The most it may be with the unlock: the core's `voice::UNLOCKED_KBPS`.
+pub const UNLOCKED_KBPS: u32 = 50_000;
 
 /// The sound shared: a choice changes it at once, live or not.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -146,8 +160,15 @@ pub struct Share {
     /// The encoder's slower preset: a sharper picture for more CPU.
     pub high_quality: bool,
     /// The most the stream sends, in kbit/s; `None` for Auto, as Discord
-    /// allows at the size streamed.
+    /// allows at the size streamed. Kept as chosen: past 9 Mbit/s it counts
+    /// as 9 while `unlocked` is off ([`Share::limit`]).
     pub max_kbps: Option<u32>,
+    /// Settings' "Unlocked bitrate": the limit's steps go past 9 Mbit/s,
+    /// and one can be typed by hand.
+    pub unlocked: bool,
+    /// The limit being typed by hand, shown in place of the dialog or the
+    /// menu, while it is.
+    pub entry: Option<Entry>,
     pub sound: Sound,
     /// "Hide stream preview": one's own stream's tile shows no picture of
     /// it, and none is made for it.
@@ -190,6 +211,8 @@ impl Default for Share {
             fps: 30,
             high_quality: false,
             max_kbps: None,
+            unlocked: false,
+            entry: None,
             sound: Sound::default(),
             preview_hidden: false,
             encoders: Vec::new(),
@@ -218,6 +241,27 @@ impl Share {
     /// The stream's mode, from its resolution and frame rate.
     pub fn mode(&self) -> Mode {
         Mode::of(self.resolution, self.fps)
+    }
+
+    /// The bitrate limit in force, in kbit/s, none for Auto: the one kept,
+    /// no more than 9 Mbit/s without the unlock, nor 50 with it.
+    pub fn limit(&self) -> Option<u32> {
+        let most = if self.unlocked {
+            UNLOCKED_KBPS
+        } else {
+            DOCUMENTED_KBPS
+        };
+        self.max_kbps.map(|kbps| kbps.min(most))
+    }
+
+    /// The limit's steps after Auto: past 9 Mbit/s too with the unlock.
+    pub fn steps(&self) -> Vec<u32> {
+        let past: &[u32] = if self.unlocked {
+            &UNLOCKED_BITRATES
+        } else {
+            &[]
+        };
+        BITRATES.iter().chain(past).copied().collect()
     }
 
     /// Shows `tab`, picking the first it lists where the pick was the other
@@ -281,6 +325,17 @@ pub enum Intent {
     /// A bitrate limit, in kbit/s, or Auto; while live it changes the
     /// stream at once.
     Bitrate(Option<u32>),
+    /// "Custom value…", with the unlock: the limit typed by hand
+    /// ([`Entry`]) shows in place of the dialog or the menu.
+    CustomBitrate,
+    /// The limit's field was typed in: its whole text.
+    BitrateText(String),
+    /// Enter in the field, or its "Apply": the value typed is the limit, if
+    /// it's one ([`entry::parse`]); else the field says why.
+    ApplyBitrate,
+    /// Escape, a click beside it, or "Cancel": back to the dialog or the
+    /// menu, the limit as it was.
+    CancelBitrate,
     /// Hide one's own stream's preview, or show it again.
     HidePreview(bool),
     /// Encode streams on the choice at this index of `Share::encoders`;

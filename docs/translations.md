@@ -49,7 +49,7 @@ reports, such as why a stream's sound can't be heard, is in it too.
 
 The file is read the first time its language is chosen, into sorted lists
 that borrow the file's text, and stays for the life of the process. Text
-Discord and Matrix send, such as messages, names and a server's own command
+Discord sends, such as messages, names and a server's own command
 names, is never translated, and Yapfast still asks Discord for English
 (`X-Discord-Locale`).
 

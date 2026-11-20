@@ -49,8 +49,9 @@ fn discord(voice: &voice::State) -> bool {
     (voice.room.as_deref()).is_some_and(|room| Network::of(room) == Network::Discord)
 }
 
-/// The dock, from the call.
-pub fn show(state: &AppState, timer: &mut Timer, dock: &mut Dock) {
+/// The dock, from the call; with the bitrate's unlock (`unlocked`), the
+/// limit chosen beside the stream's quality.
+pub fn show(state: &AppState, unlocked: bool, timer: &mut Timer, dock: &mut Dock) {
     let voice = &state.voice;
     let ready = matches!(voice.phase, Phase::Connected | Phase::Reconnecting);
     timer.follow(voice.room.as_deref().filter(|_| ready));
@@ -101,7 +102,8 @@ pub fn show(state: &AppState, timer: &mut Timer, dock: &mut Dock) {
         share_quality: sharing
             .map(|_| {
                 let resolution = menu_resolution(voice.quality.resolution);
-                anomi_voice::share::quality(resolution, voice.quality.fps)
+                let limit = voice.quality.limit(unlocked).filter(|_| unlocked);
+                anomi_voice::share::quality(resolution, voice.quality.fps, limit)
             })
             .unwrap_or_default(),
         share_sound_on: voice.stream_audio != StreamAudio::Off,

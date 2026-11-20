@@ -2,7 +2,7 @@
 name = "yapfast"
 version = "0.4.1"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 
@@ -10,7 +10,7 @@ license = "GPL-3.0-or-later"
 # The anomi-* crates are the iced interface, beside the Slint one; see
 # docs/iced/README.md. A new one joins by its folder's name, and
 # scripts/check leaves them all to scripts/check-iced.
-members = ["crates/feature-union", "crates/yapfast-core", "crates/yapfast-discord", "crates/yapfast-lang", "crates/anomi-*"]
+members = ["crates/yapfast-core", "crates/yapfast-discord", "crates/yapfast-http", "crates/yapfast-lang", "crates/anomi-*"]
 default-members = ["."]
 # crates/yapfast-ui is a path dependency outside the workspace: Clippy lints
 # every workspace member it compiles, even one --exclude leaves out, and
@@ -18,17 +18,15 @@ default-members = ["."]
 # Outside, rustc checks it in 37 s. vendor/iced_tiny_skia and vendor/iced_wgpu
 # are patched in for the iced crates and tested on their own (their
 # PATCHES.md), so scripts/check's workspace steps don't take iced in.
-exclude = ["crates/yapfast-ui", "vendor/iced_tiny_skia", "vendor/iced_wgpu", "vendor/matrix-rtc-livekit", "vendor/webrtc-sys", "vendor/davey", "vendor/x264-src", "vendor/ffmpeg-src"]
+exclude = ["crates/yapfast-ui", "vendor/iced_tiny_skia", "vendor/iced_wgpu", "vendor/webrtc-sys", "vendor/davey", "vendor/x264-src", "vendor/ffmpeg-src"]
 resolver = "3"
 
 [features]
-# The release's features: Discord on the desktop. Matrix is optional, as is
-# each network, so a build can carry Matrix, Discord or both; scripts/check
-# --matrix checks the builds with Matrix.
+# The release's features: Discord on the desktop. Without `discord` the app
+# runs only the local preview and the device checks.
 default = ["desktop", "discord"]
-matrix = ["yapfast-core/matrix"]
 discord = ["yapfast-core/discord", "dep:qrcode"]
-desktop = ["dep:slint", "dep:yapfast-ui", "dep:skia-safe", "dep:rfd", "dep:memmap2", "dep:flate2", "dep:emojis", "dep:i-slint-core", "dep:image", "dep:tempfile", "dep:anomi-desktop", "dep:windows-sys", "dep:i-slint-renderer-skia", "dep:x11rb", "dep:xkeysym", "dep:reqwest", "dep:rustls", "dep:sha2", "dep:minisign-verify", "dep:tr", "dep:sys-locale"]
+desktop = ["dep:slint", "dep:yapfast-ui", "dep:skia-safe", "dep:rfd", "dep:memmap2", "dep:flate2", "dep:emojis", "dep:i-slint-core", "dep:image", "dep:tempfile", "dep:anomi-desktop", "dep:windows-sys", "dep:i-slint-renderer-skia", "dep:x11rb", "dep:xkeysym", "dep:yapfast-http", "dep:sha2", "dep:minisign-verify", "dep:tr", "dep:sys-locale"]
 # The desktop app with a window that reloads ui/ on each save, for UI work;
 # see docs/building.md.
 live-preview = ["desktop", "yapfast-ui/live-preview"]
@@ -69,10 +67,9 @@ yapfast-ui = { path = "crates/yapfast-ui", optional = true }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"], optional = true }
 tempfile = { workspace = true, optional = true }
 tracing.workspace = true
-# The About page's one request, for the list of releases; the same TLS as the
-# Discord connection, which is already in the tree.
-reqwest = { version = "0.13", default-features = false, features = ["http2", "rustls-no-provider"], optional = true }
-rustls = { workspace = true, optional = true }
+# The About page's requests, for the list of releases and a release's files:
+# the browser every connection presents as, as the Discord connection's.
+yapfast-http = { path = "crates/yapfast-http", optional = true }
 # Checks a downloaded release against the SHA256SUMS.txt it was published with.
 sha2 = { version = "0.10", optional = true }
 # Checks the minisign signature on those sums, with the keys in packaging/keys.
@@ -172,13 +169,6 @@ directories = "6"
 futures-util = "0.3"
 keyring = "=4.2.0"
 livekit = { version = "=0.7.48", features = ["rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
-# Keep this SDK source and revision identical to matrix-rust-rtc's workspace pin.
-matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "c6ad52ecc09eaa36601f55effb0a48a533eb87dd", features = ["bundled-sqlite", "markdown"] }
-matrix-sdk-ui = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "c6ad52ecc09eaa36601f55effb0a48a533eb87dd", features = ["unstable-msc4354"] }
-matrix-sdk-crypto = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "c6ad52ecc09eaa36601f55effb0a48a533eb87dd" }
-matrix-rtc-livekit = { path = "vendor/matrix-rtc-livekit", features = ["matrix-sdk"] }
-matrix-rtc-core = { git = "https://github.com/element-hq/matrix-rust-rtc", rev = "5831af899f1e1744c21332613cdc9578a98c604f" }
-matrix-rtc-media = { git = "https://github.com/element-hq/matrix-rust-rtc", rev = "5831af899f1e1744c21332613cdc9578a98c604f" }
 rustls = { version = "0.23", features = ["aws_lc_rs"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
@@ -190,7 +180,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 url = "2"
 
-# Cargo does not inherit the SDK's patches through a git dependency.
 [patch.crates-io]
 webrtc-sys = { path = "vendor/webrtc-sys" }
 i-slint-core = { path = "vendor/i-slint-core" }
@@ -206,7 +195,6 @@ vtable = { git = "https://github.com/slint-ui/slint", rev = "ac7d423f294ae12bda3
 const-field-offset = { git = "https://github.com/slint-ui/slint", rev = "ac7d423f294ae12bda32c577b075a0f139457d1d" }
 davey = { path = "vendor/davey" }
 tungstenite = { path = "vendor/tungstenite" }
-const_panic = { git = "https://github.com/jplatte/const_panic", rev = "e0b317a9a7bde2d48a7d15b6a60d70e4a41d3b5f" }
 
 # The crates of that commit reach these two by path, so they're patched there too.
 [patch."https://github.com/slint-ui/slint"]

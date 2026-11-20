@@ -9,9 +9,7 @@
 use yapfast_lang::tr;
 
 use anomi_vm::menu::Row;
-use anomi_vm::voice::share::{
-    BITRATES, FRAME_RATES, Intent, Live, Mode, Part, Resolution, Rows, Share, Sound,
-};
+use anomi_vm::voice::share::{FRAME_RATES, Intent, Live, Mode, Part, Resolution, Rows, Share, Sound};
 
 /// What the menus call a resolution.
 pub fn resolution(resolution: Resolution) -> &'static str {
@@ -23,8 +21,9 @@ pub fn resolution(resolution: Resolution) -> &'static str {
     }
 }
 
-/// What the menus call a bitrate limit, in kbit/s; Auto for none. The
-/// steps are whole texts, as each language writes its decimals.
+/// What the menus call a bitrate limit, in kbit/s; Auto for none. Discord's
+/// steps are whole texts; any other is its Mbit/s, with its decimals after
+/// the mark each language writes ("12 Mbit/s", "20.5 Mbit/s").
 pub fn bitrate(kbps: Option<u32>) -> String {
     match kbps {
         None => tr!("Auto").to_owned(),
@@ -34,14 +33,32 @@ pub fn bitrate(kbps: Option<u32>) -> String {
         Some(6_000) => tr!("6 Mbit/s").to_owned(),
         Some(8_000) => tr!("8 Mbit/s").to_owned(),
         Some(9_000) => tr!("9 Mbit/s").to_owned(),
-        Some(other) => tr!("{} kbit/s", other),
+        Some(kbps) if kbps.is_multiple_of(1000) => tr!("{} Mbit/s", kbps / 1000),
+        Some(kbps) => {
+            let decimals = format!("{:03}", kbps % 1000);
+            tr!(
+                "{0}.{1} Mbit/s",
+                kbps / 1000,
+                decimals.trim_end_matches('0')
+            )
+        }
     }
 }
 
-/// The limits, Auto first with what it sends, as radio rows.
+/// The limit the summaries say: none without the unlock, as before it, nor
+/// for Auto.
+fn said_limit(share: &Share) -> Option<u32> {
+    share.limit().filter(|_| share.unlocked)
+}
+
+/// The limits, Auto first with what it sends, as radio rows; with the
+/// unlock, the steps past 9 Mbit/s too, then "Custom value…", chosen while
+/// the limit is none of the steps.
 pub(super) fn limits<I>(share: &Share, intent: impl Fn(Intent) -> I) -> Vec<Row<I>> {
-    std::iter::once(None)
-        .chain(BITRATES.into_iter().map(Some))
+    let steps = share.steps();
+    let limit = share.limit();
+    let mut rows: Vec<Row<I>> = std::iter::once(None)
+        .chain(steps.iter().copied().map(Some))
         .map(|kbps| {
             let row = Row::new(bitrate(kbps), intent(Intent::Bitrate(kbps)));
             let row = if kbps.is_none() {
@@ -49,9 +66,23 @@ pub(super) fn limits<I>(share: &Share, intent: impl Fn(Intent) -> I) -> Vec<Row<
             } else {
                 row
             };
-            row.radio(share.max_kbps == kbps).plain()
+            row.radio(limit == kbps).plain()
         })
-        .collect()
+        .collect();
+    if share.unlocked {
+        let custom = limit.filter(|kbps| !steps.contains(kbps));
+        let said = custom.map_or_else(
+            || tr!("From 1 to 50 Mbit/s").to_owned(),
+            |kbps| bitrate(Some(kbps)),
+        );
+        rows.push(
+            Row::new(tr!("Custom value…"), intent(Intent::CustomBitrate))
+                .subtitle(said)
+                .radio(custom.is_some())
+                .plain(),
+        );
+    }
+    rows
 }
 
 /// A stream mode's name.
@@ -75,15 +106,17 @@ pub fn built(mut share: Share) -> Share {
         Sound::All => tr!("System sound"),
         Sound::None => tr!("No sound"),
     };
+    let size = resolution(share.resolution);
+    let rate = tr!("{}fps", share.fps);
+    // With the unlock, the limit chosen goes between the rate and the sound.
+    let quality = match said_limit(&share) {
+        Some(kbps) => format!("{size} · {rate} · {} · {sound}", bitrate(Some(kbps))),
+        None => format!("{size} · {rate} · {sound}"),
+    };
     share.rows = Rows {
         windows,
         mode: mode_name(share.mode()).to_owned(),
-        quality: format!(
-            "{} · {} · {}",
-            resolution(share.resolution),
-            tr!("{}fps", share.fps),
-            sound
-        ),
+        quality,
     };
     if let Some(mut live) = share.live.take() {
         stream(&share, &mut live);
@@ -93,9 +126,14 @@ pub fn built(mut share: Share) -> Share {
 }
 
 /// What the stream goes out at, as the stream's menu and the dock say it:
-/// "1080p · 60 fps".
-pub fn quality(resolution: Resolution, fps: u32) -> String {
-    tr!("{} · {} fps", self::resolution(resolution), fps)
+/// "1080p · 60 fps"; with the unlock, the limit chosen after it, `limit`
+/// in kbit/s: "1440p · 60 fps · 20 Mbit/s".
+pub fn quality(resolution: Resolution, fps: u32, limit: Option<u32>) -> String {
+    let said = tr!("{} · {} fps", self::resolution(resolution), fps);
+    match limit {
+        Some(kbps) => format!("{said} · {}", bitrate(Some(kbps))),
+        None => said,
+    }
 }
 
 /// The stream's menu's rows, from the picks: "Stream Quality" with the
@@ -141,7 +179,7 @@ fn stream(share: &Share, live: &mut Live) {
     };
     let opens = |part| Intent::Hover(Some(part));
     live.quality = Row::new(tr!("Stream Quality"), opens(Part::Quality))
-        .subtitle(quality(share.resolution, share.fps))
+        .subtitle(quality(share.resolution, share.fps, said_limit(share)))
         .submenu(rates)
         .plain();
     live.sound = Row::new(tr!("ShareMenu" => "Sound"), opens(Part::Sound))

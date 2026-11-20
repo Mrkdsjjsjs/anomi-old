@@ -911,7 +911,6 @@ async fn fake_discord() -> Discord {
         yapfast_discord::client::test_server().is_some(),
         "set YAPFAST_DISCORD_TEST_SERVER to the fake Discord"
     );
-    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let discord = Discord::start(yapfast_discord::token::load().unwrap()).unwrap();
     let mut snapshots = discord.snapshots();
     tokio::time::timeout(
@@ -1241,7 +1240,6 @@ async fn a_thread_beside_the_open_channel_shows_its_own_pages() {
 async fn a_thread_beside_the_open_channel_plays_its_videos() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let mut chat = Chat::start().unwrap().expect("the fake's account");
     let mut snapshots = chat.discord.snapshots();
     tokio::time::timeout(

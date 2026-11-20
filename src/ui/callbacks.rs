@@ -926,9 +926,7 @@ pub(super) fn bind_callbacks(window: &YapfastWindow, adapter: &Rc<RefCell<Adapte
             }
         });
     }
-    bind!(on_restore, Action::Restore);
     bind!(on_logout, Action::Logout);
-    bind!(on_refresh_trust, Action::RefreshTrust);
     bind!(on_retry_sync, Action::RetrySync);
     bind!(
         on_navigate_dms,
@@ -1309,7 +1307,6 @@ pub(super) fn bind_callbacks(window: &YapfastWindow, adapter: &Rc<RefCell<Adapte
     bind_item!(on_link_discord_token, Action::LinkDiscordToken);
     bind!(on_open_discord_captcha, Action::OpenDiscordCaptcha);
     bind!(on_cancel_discord_link, Action::CancelDiscordLink);
-    bind!(on_unlink_discord, Action::UnlinkDiscord);
     bind!(on_close_add_friend, Action::CloseAddFriend);
     bind!(on_close_person, Action::ClosePersonDialog);
     bind!(on_close_invite, Action::CloseInvite);
@@ -2679,37 +2676,6 @@ pub(super) fn bind_callbacks(window: &YapfastWindow, adapter: &Rc<RefCell<Adapte
                 }
             }
         });
-    });
-    let state = adapter.clone();
-    let weak = window.as_weak();
-    window.on_login(move || {
-        if let Some(window) = weak.upgrade() {
-            let mut state = state.borrow_mut();
-            let busy = state.app.state.busy;
-            state.action(
-                &window,
-                Action::Login {
-                    homeserver: window.get_homeserver().into(),
-                    username: window.get_username().into(),
-                    password: window.get_password().into(),
-                },
-            );
-            if !busy && state.app.state.busy {
-                window.set_password(SharedString::default());
-            }
-        }
-    });
-    let state = adapter.clone();
-    let weak = window.as_weak();
-    window.on_recover(move || {
-        if let Some(window) = weak.upgrade() {
-            let mut state = state.borrow_mut();
-            let busy = state.app.state.busy;
-            state.action(&window, Action::Recover(window.get_recovery().into()));
-            if !busy && state.app.state.busy {
-                window.set_recovery(SharedString::default());
-            }
-        }
     });
     let state = adapter.clone();
     let weak = window.as_weak();

@@ -17,8 +17,8 @@ Scope for the beta:
   a stream watched, apart from its streamer's voice; see
   [Cleaning a stream's sound](go-live.md#cleaning-a-streams-sound).
 
-Clicking a voice channel joins through the same voice dock and one-call rule as
-Matrix voice, and, as Discord's client does, without showing the call: a second
+Clicking a voice channel joins through the voice dock, one call at a time,
+and, as Discord's client does, without showing the call: a second
 click on the channel, or its line in the dock, does that. Discord's client goes
 to the channel as it joins only when its chat has a mention, where it opens the
 chat, and from buttons that say so, such as Join Voice on a voice channel's
@@ -327,12 +327,6 @@ and the popout reads it as it reads the pings. A report more than 3 s old
 means the stream stopped, and the tab goes. `talks_to_the_fake_server`
 checks the bytes counted and a resend.
 
-Matrix calls don't have these yet. LiveKit's SDK measures its signal
-connection's round trip but doesn't expose it, and `Room::get_stats`
-serialises all of WebRTC's statistics to JSON and parses them back, too much
-to run every few seconds for a graph. A Matrix call's detail line says
-"End-to-end encrypted" while LiveKit encrypts its frames.
-
 ## How calls carry video
 
 Calls run on the connection Go Live uses (`voice_connection.rs`, shared by
@@ -469,7 +463,7 @@ named under the row, as a device menu names its device. "Remove my echo" is
 a box that turns them down while what comes from them is only this
 account's own voice, back from their speakers. Choosing a suppressor keeps
 the menu open, as ticking a box does, and the mark moves to it. Neither row
-is offered for this account, nor in Matrix calls, whose audio LiveKit plays.
+is offered for this account.
 The menu of a watched stream's tile has the same two for the stream's
 sound, which its worker plays and cleans (see
 [Go Live](go-live.md#cleaning-a-streams-sound)).
@@ -996,13 +990,8 @@ keybinds are recorded, kept and heard in other apps is in
 
 `crates/yapfast-core/src/push_to_talk.rs` keeps the mode, whether push to talk
 or push to mute is held, and the delay in atomics. The microphone reads them
-each 10 ms block, allocating nothing, and counts the delay in blocks. Matrix
-calls take them too, though their microphone is LiveKit's device module rather
-than this processing: while nothing is to be sent their track is disabled,
-which sends silence without showing others a mute, so LiveKit's active
-speakers, which ring the account, leave it out. `matrix_voice`'s
-`persistent_encrypted_voice_and_native_audio` checks it between two processes
-on the local stack. `push_to_talk_sends_only_while_the_key_is_held`, against
+each 10 ms block, allocating nothing, and counts the delay in blocks.
+`push_to_talk_sends_only_while_the_key_is_held`, against
 the fake Discord, checks that beeps with the key up send nothing and with it
 held do; it's ignored, and runs by hand (see its comment).
 

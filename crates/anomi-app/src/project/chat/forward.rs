@@ -68,14 +68,11 @@ pub(crate) fn show(
     } else {
         tr!("Send").to_owned()
     };
-    let empty = if Network::of(&forwarding.room) == Network::Discord {
+    let empty = if Network::of(&forwarding.room) == Network::Discord || forwarding.query.is_empty()
+    {
         tr!("We searched far and wide. Unfortunately, no results were found.")
-    } else if !forwarding.query.is_empty() {
-        tr!("No conversations match.")
     } else {
-        tr!(
-            "There's nowhere to forward to yet. Yapfast forwards Matrix messages only into encrypted conversations."
-        )
+        tr!("No conversations match.")
     };
     set(&mut forward.empty, empty);
     let key = Key {

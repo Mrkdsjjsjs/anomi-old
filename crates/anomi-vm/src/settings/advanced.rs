@@ -1,8 +1,9 @@
 //! The Advanced settings page: what it shows and what it asks for. Task S10
 //! (docs/iced/tasks/settings.md). The Slint side: `AdvancedSettings`
 //! (`ui/settings.slint:1881`). Anomi adds Optimization under the switches:
-//! the processor's cores the program runs on, what draws the interface, and
-//! where streams encode.
+//! the processor's cores the program runs on, what draws the interface,
+//! where streams encode, and whether a stream's bitrate may pass Discord's
+//! documented 9 Mbit/s.
 
 /// The Advanced settings page: what its screen draws. The window holds it as
 /// `vm.settings.advanced`.
@@ -42,6 +43,9 @@ pub struct Advanced {
     pub encoder_keys: Vec<String>,
     pub encoder: usize,
     pub encoder_line: String,
+    /// "Unlocked bitrate": a stream's bitrate limit may be set by hand past
+    /// Discord's documented 9 Mbit/s, up to 50.
+    pub bitrate_unlocked: bool,
 }
 
 /// A row of "Interface rendering": what may draw the interface.
@@ -130,6 +134,9 @@ pub enum Intent {
     Encoder(String),
     /// What draws the interface, by the key of the row ([`DrawOn::key`]).
     Renderer(String),
+    /// "Unlocked bitrate" turned on or off; a stream going takes it at
+    /// once.
+    BitrateUnlocked(bool),
 }
 
 #[cfg(test)]

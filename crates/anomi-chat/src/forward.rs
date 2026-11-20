@@ -261,7 +261,6 @@ pub fn shots() -> Vec<crate::shots::Shot> {
         shot("limit", || over(sample::at_limit())),
         shot("found", || over(sample::found())),
         shot("nothing", || over(sample::nothing_found())),
-        shot("nowhere", || over(sample::nowhere())),
         shot("slowmode", || over(sample::slowmode())),
         shot("failed", || over(sample::failed())),
     ]

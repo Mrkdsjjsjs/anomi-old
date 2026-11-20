@@ -1,9 +1,8 @@
 //! The sign-in screen and linking Discord. The Slint side: `SignInScreen`
 //! (`ui/sign-in.slint:8`): the app's icon and name at the top left, then a
 //! card centred on the darkest ground with the way in on its left (linking
-//! Discord, or a Matrix password) and the local preview beside it. Its parts
-//! are one module each: [`discord`] (`DiscordLinkPanel`), [`matrix`],
-//! [`preview`] and [`verify`] (`VerifyBanner`). Task N09
+//! Discord) and the local preview beside it. Its parts are one module each:
+//! [`discord`] (`DiscordLinkPanel`) and [`preview`]. Task N09
 //! (docs/iced/tasks/shell.md).
 //!
 //! The card keeps the Slint one's room: 760 px at most, 32 px inside, the
@@ -15,12 +14,10 @@
 
 mod discord;
 mod link;
-mod matrix;
 mod preview;
 #[cfg(feature = "shots")]
 mod shots;
 mod sides;
-mod verify;
 
 use iced::widget::{Column, column, container, responsive, row, rule, scrollable, text};
 use iced::{Alignment, Border, Color, Fill, Length, Shadow, Vector};
@@ -35,19 +32,14 @@ use anomi_widgets::picture::picture;
 use yapfast_lang::tr;
 
 pub use link::dialog as link_dialog;
-pub use verify::verify_banner;
 
 /// Its shots for `anomi-shots`, each the whole window from a fixture (see
 /// `crate::shots`).
 #[cfg(feature = "shots")]
 pub use shots::shots;
 
-/// The field ids the app focuses (`field::focus`): the Matrix sign-in's
-/// Matrix ID when it is asked for (`sign-in-focus`), the token when
+/// The field id the app focuses (`field::focus`): the token when
 /// `Intent::OpenToken` opens it (`init => focus-input`).
-pub const USERNAME: &str = "sign-in-username";
-pub const HOMESERVER: &str = "sign-in-homeserver";
-pub const PASSWORD: &str = "sign-in-password";
 pub const TOKEN: &str = "sign-in-token";
 
 /// The buttons' ids, which tests and `focusable::focus` find them by.
@@ -55,11 +47,7 @@ pub const SHOW_CODE: &str = "sign-in-show-code";
 pub const USE_TOKEN: &str = "sign-in-use-token";
 pub const LINK: &str = "sign-in-link";
 pub const REOPEN: &str = "sign-in-reopen";
-pub const SIGN_IN: &str = "sign-in-matrix";
-pub const RETRY: &str = "sign-in-retry";
 pub const PREVIEW: &str = "sign-in-preview";
-pub const RECOVER: &str = "verify-recover";
-pub const CHECK_AGAIN: &str = "verify-check-again";
 
 /// The icon and name at the top left: 36 px square at (28, 18), 10 px
 /// apart (`:25`); the screen's content starts 64 px down.
@@ -160,25 +148,16 @@ fn page(sign_in: &SignIn, motion: Motion, window: f32) -> Element<'_, Intent> {
 
 /// The raised card: the way in, a rule, the preview.
 fn card(sign_in: &SignIn, motion: Motion, width: f32) -> Element<'_, Intent> {
-    let (left, spacing) = if sign_in.matrix_build {
-        (vec![(matrix::view(sign_in, motion), false)], 0.0)
-    } else {
-        (discord::way(sign_in, motion), metrics::SPACE_S)
-    };
     let sides = sides::sides(
-        left,
-        spacing,
+        discord::way(sign_in, motion),
+        metrics::SPACE_S,
         rule::vertical(1).style(catalog::rule::line).boxed(),
         preview::view(sign_in, motion),
         CARD_GAP,
         preview::WIDTH,
         width - 2.0 * CARD_PAD,
         WAY_MIN,
-        if sign_in.matrix_build {
-            None
-        } else {
-            discord::floor(sign_in, motion)
-        },
+        discord::floor(sign_in, motion),
     );
     container(sides)
         .padding(CARD_PAD)
@@ -212,12 +191,6 @@ fn heading_parts<'a>(line: &'a str) -> [Element<'a, Intent>; 2] {
             .style(catalog::text::secondary)
             .boxed(),
     ]
-}
-
-/// The heading as one column (a way in that does not stretch).
-fn heading<'a>(line: &'a str) -> Element<'a, Intent> {
-    let [title, line] = heading_parts(line);
-    column![title, line].spacing(metrics::SPACE_S).boxed()
 }
 
 /// A field's small heading in capitals (`font-size: 12px; weight 700`).

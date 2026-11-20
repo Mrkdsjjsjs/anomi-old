@@ -6,14 +6,12 @@ use crate::fixtures::settings::frame::settings;
 use crate::settings::frame::Page;
 use crate::settings::notifications::Notifications;
 
-/// All three on, Discord alone: the golden screenshot's.
+/// All three on: the golden screenshot's.
 pub fn notifications() -> Notifications {
     Notifications {
         notifications: true,
         text: true,
         flash_taskbar: true,
-        matrix: false,
-        discord: true,
     }
 }
 
@@ -28,12 +26,5 @@ pub fn page() -> Vm {
 pub fn off() -> Vm {
     let mut vm = page();
     vm.settings.notifications.notifications = false;
-    vm
-}
-
-/// Both networks in use, whose rules both decide.
-pub fn both() -> Vm {
-    let mut vm = page();
-    vm.settings.notifications.matrix = true;
     vm
 }

@@ -293,7 +293,7 @@ async fn sends_edits_and_deletes_messages() {
     } = Fixture::start("sends_edits_and_deletes_messages").await;
     let mut live = discord.live();
     // Bob chats live until stopped.
-    let control = reqwest::Client::new();
+    let control = yapfast_http::wreq::Client::new();
     control
         .post(format!("{server}/_control/chat-start"))
         .send()
@@ -453,7 +453,7 @@ async fn votes_in_and_posts_polls() {
         general,
         ..
     } = Fixture::start("votes_in_and_posts_polls").await;
-    let control = reqwest::Client::new();
+    let control = yapfast_http::wreq::Client::new();
     let mut live = discord.live();
     // Polls: a vote comes back live, who voted lists by answer, and Alice's
     // own poll ends early with a notice of its winner.
@@ -564,7 +564,7 @@ async fn forwards_messages() {
         general,
         ..
     } = Fixture::start("forwards_messages").await;
-    let control = reqwest::Client::new();
+    let control = yapfast_http::wreq::Client::new();
     let mut live = discord.live();
     // A message of Bob's to forward.
     post_control(server, "/_control/chat-start", "");
@@ -633,7 +633,7 @@ async fn types_and_mentions() {
         general,
         ..
     } = Fixture::start("types_and_mentions").await;
-    let control = reqwest::Client::new();
+    let control = yapfast_http::wreq::Client::new();
     let mut live = discord.live();
     // Bob starts typing, and Yapfast says Alice is typing.
     control
@@ -705,7 +705,7 @@ async fn shows_embeds_and_media() {
         general,
         ..
     } = Fixture::start("shows_embeds_and_media").await;
-    let control = reqwest::Client::new();
+    let control = yapfast_http::wreq::Client::new();
     let mut live = discord.live();
     // Link previews: the article's arrives in an update, as Discord crawls
     // the page after the message is sent. A GIF link shows as a picture,

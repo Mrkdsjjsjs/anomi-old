@@ -11,14 +11,9 @@ use super::{counting, handle, mfa};
 use crate::tests::{mfa_prompt, start};
 
 #[test]
-fn the_fields_keep_what_was_typed_and_a_token_links() {
+fn the_token_field_keeps_what_was_typed_and_links() {
     let mut window = start("sign-in-typed", false);
     let app = &mut window.app;
-    drop(handle(app, sign_in::Intent::Username("alice".into())));
-    drop(handle(app, sign_in::Intent::Password("hunter2".into())));
-    drop(handle(app, sign_in::Intent::Password("hunter22".into())));
-    assert_eq!(app.vm.sign_in.username, "alice");
-    assert_eq!(app.vm.sign_in.password, "hunter22");
     drop(handle(app, sign_in::Intent::OpenToken));
     assert!(app.vm.sign_in.token_open);
     drop(handle(app, sign_in::Intent::LinkToken));

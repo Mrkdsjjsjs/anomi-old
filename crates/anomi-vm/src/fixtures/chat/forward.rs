@@ -126,15 +126,6 @@ pub fn nothing_found() -> Forward {
     }
 }
 
-/// Matrix, with no encrypted conversation to forward into.
-pub fn nowhere() -> Forward {
-    Forward {
-        targets: Vec::new(),
-        empty: tr!("There's nowhere to forward to yet. Yapfast forwards Matrix messages only into encrypted conversations.").into(),
-        ..open()
-    }
-}
-
 /// A note written for a place that has slowmode.
 pub fn slowmode() -> Forward {
     Forward {

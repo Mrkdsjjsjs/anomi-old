@@ -192,6 +192,9 @@ pub struct Encoder {
     free: Free,
     /// The bitrate aimed for, in kbit/s.
     kbps: u32,
+    /// The kbit/s it was opened to hold ([`Self::holding`]): the level it
+    /// signals takes the stream up to that. 0 when none was asked.
+    held: u32,
     width: u32,
     height: u32,
     fps: u32,
@@ -270,14 +273,48 @@ impl Encoder {
             set_bitrate,
             free,
             kbps,
+            held: 0,
             width,
             height,
             fps,
             threads,
             planes: Vec::new(),
-            // Even a keyframe of noise fits.
+            // Even a keyframe of noise fits, at any bitrate: an encoder
+            // codes a block that won't shrink as its pixels.
             out: vec![0; pixels * 2 + 4096],
         })
+    }
+
+    /// An encoder as [`Self::on`] opens it, but at `held` kbit/s, aiming
+    /// for `kbps` from its first frame. Each encoder chooses the level its
+    /// stream signals by the bitrate it opens at (x264 and FFmpeg's VA-API
+    /// encoders by their VBV's rate and buffer, NVENC's own choice by the
+    /// bitrate too), and keeps it: a stream whose target later rises to a
+    /// ceiling past 9 Mbit/s would pass that level's bitrate. With `held`
+    /// 0 it's [`Self::on`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn holding(
+        codec: Codec,
+        width: u32,
+        height: u32,
+        fps: u32,
+        kbps: u32,
+        held: u32,
+        effort: Effort,
+        device: &Device,
+    ) -> Result<Self> {
+        let mut encoder = Self::on(codec, width, height, fps, kbps.max(held), effort, device)?;
+        encoder.held = held;
+        if held > kbps {
+            encoder.set_bitrate(kbps)?;
+        }
+        Ok(encoder)
+    }
+
+    /// The kbit/s the level it signals was chosen for, at least, when it
+    /// was opened to hold them ([`Self::holding`]); 0 otherwise.
+    pub fn held(&self) -> u32 {
+        self.held
     }
 
     /// Which encoder runs: "libvpx", "x264", or FFmpeg's name for a
@@ -436,8 +473,14 @@ impl Encoder {
             Err(error) if self.hardware() && self.codec == Codec::H264 => {
                 tracing::warn!(engine = self.engine, %error, "the GPU's encoder failed; encoding with x264");
                 let (codec, width, height, fps) = (self.codec, self.width, self.height, self.fps);
-                let opened = open_software(codec, width, height, fps, self.kbps, self.effort)?;
+                // At the bitrate the level was chosen for, as it opened.
+                let kbps = self.kbps;
+                let at = kbps.max(self.held);
+                let opened = open_software(codec, width, height, fps, at, self.effort)?;
                 self.replace(opened);
+                if at > kbps {
+                    self.set_bitrate(kbps)?;
+                }
                 self.encode_once(planes, pts, true)
             }
             encoded => encoded,
@@ -654,6 +697,39 @@ mod tests {
         let vp8 = Encoder::new(Codec::Vp8, 64, 36, 30, 500, Effort::Light, false).unwrap();
         assert!(vp8.tuned(30, Effort::High), "VP8 takes no effort");
         assert!(!vp8.tuned(15, Effort::Light));
+    }
+
+    /// An encoder opened to hold 50 Mbit/s, the unlock's most, aims for its
+    /// start from the first frame, says what it holds, and rises to it
+    /// without opening again. One opened to hold less than it aims for
+    /// opens at its aim; one asked to hold nothing is a plain one.
+    #[test]
+    fn holds_a_higher_ceiling_than_it_aims_for() {
+        let at = |held| {
+            Encoder::holding(
+                Codec::H264,
+                64,
+                36,
+                30,
+                2_500,
+                held,
+                Effort::Light,
+                &Device::Processor,
+            )
+            .unwrap()
+        };
+        let mut x264 = at(50_000);
+        assert_eq!((x264.bitrate(), x264.held()), (2_500, 50_000));
+        let rgba = vec![90u8; 64 * 36 * 4];
+        let first = x264.encode(&rgba, 0, true).unwrap().unwrap();
+        assert!(first.keyframe);
+        x264.set_bitrate(50_000).unwrap();
+        assert_eq!((x264.bitrate(), x264.held()), (50_000, 50_000));
+        assert!(x264.encode(&rgba, 3000, false).unwrap().is_some());
+        let below = at(2_000);
+        assert_eq!((below.bitrate(), below.held()), (2_500, 2_000));
+        let plain = at(0);
+        assert_eq!((plain.bitrate(), plain.held()), (2_500, 0));
     }
 
     /// On the processor, only the processor's encoders; on an adapter, only

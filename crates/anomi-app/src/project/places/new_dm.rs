@@ -1,7 +1,6 @@
 //! The new DM and group DM dialog from the core's `new_dm`
-//! (`src/ui/refresh.rs:3584`-`:3612`): who the search found, Discord's
-//! first, built again only when they or the pictures change, and the line
-//! under them.
+//! (`src/ui/refresh.rs:3584`-`:3612`): who the search found, built again
+//! only when they or the pictures change, and the line under them.
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
@@ -14,9 +13,6 @@ use anomi_vm::shell::{Layer, Shell};
 use super::{follow, set};
 use crate::pictures::Requests;
 use crate::project::rows;
-
-/// Matrix ids can be typed, and the rows mark who is on Discord.
-const MATRIX: bool = cfg!(feature = "matrix");
 
 /// Who the dialog listed last, as a hash of them, and the pictures then.
 #[derive(Default)]
@@ -41,7 +37,6 @@ pub(super) fn show(
         return;
     };
     set(&mut new_dm.query, &dialog.query);
-    new_dm.matrix = MATRIX;
     new_dm.starting = dialog.starting;
     let key = (found(dialog), state.picture_changes);
     if shown.key != Some(key) {
@@ -58,7 +53,7 @@ pub(super) fn show(
                     &contact.name,
                     contact.avatar.as_deref(),
                 ),
-                discord: MATRIX && contact.discord,
+                discord: crate::project::rail::MARKS && contact.discord,
             })
             .collect();
         shown.key = Some(key);
@@ -86,14 +81,8 @@ fn note(dialog: &Dialog, nobody: bool) -> &str {
     }
     match nobody {
         false => "",
-        true if dialog.query.trim().is_empty() && MATRIX => tr!(
-            "Type a name to find people you know on Discord, or a full Matrix id such as @name:example.org."
-        ),
         true if dialog.query.trim().is_empty() => {
             tr!("Type a name to find people you know on Discord.")
-        }
-        true if MATRIX => {
-            tr!("No one found. For Matrix, type a full id such as @name:example.org.")
         }
         true => tr!("No one found."),
     }

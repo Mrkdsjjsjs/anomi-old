@@ -28,8 +28,6 @@ pub struct Blocked {
 pub struct Discord {
     /// A Discord account is linked; until then the page offers to link one.
     pub linked: bool,
-    /// The build has Matrix too, where Unlink is the page's first line.
-    pub matrix_build: bool,
     pub show_hidden_channels: bool,
     pub sync_reads: bool,
     pub show_idle: bool,
@@ -44,7 +42,6 @@ impl Default for Discord {
     fn default() -> Self {
         Self {
             linked: true,
-            matrix_build: false,
             show_hidden_channels: false,
             sync_reads: false,
             show_idle: false,
@@ -63,8 +60,6 @@ impl Default for Discord {
 pub enum Intent {
     /// Show the code to link an account (`link-discord`), while none is.
     Link,
-    /// Sign out of Discord on this computer (`unlink-discord`).
-    Unlink,
     ShowHiddenChannels(bool),
     SyncReads(bool),
     ShowIdle(bool),

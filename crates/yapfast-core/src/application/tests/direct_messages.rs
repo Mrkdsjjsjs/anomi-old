@@ -3,7 +3,7 @@
 use super::*;
 
 #[test]
-fn new_dms_find_people_on_both_networks_and_open_once_listed() {
+fn new_dms_find_people_and_open_once_listed() {
     let mut app = connected();
     assert!(matches!(
         app.dispatch(Action::OpenNewDm).as_slice(),
@@ -19,36 +19,29 @@ fn new_dms_find_people_on_both_networks_and_open_once_listed() {
     };
     app.apply(Event::People {
         query: "sa".into(),
-        discord: false,
-        people: vec![contact("@sam:test", "Sam", false)],
-    });
-    app.apply(Event::People {
-        query: "sa".into(),
-        discord: true,
-        people: vec![contact("5", "Sasha", true)],
+        people: vec![contact("5", "Sasha", true), contact("7", "Sam", true)],
     });
     // An answer to an older query is dropped.
     app.apply(Event::People {
         query: "s".into(),
-        discord: true,
         people: vec![contact("6", "Sid", true)],
     });
     let new_dm = app.state.new_dm.clone().unwrap();
     let names: Vec<_> = new_dm.people().map(|person| person.name.as_str()).collect();
     assert_eq!(names, ["Sasha", "Sam"]);
     assert!(matches!(
-        app.dispatch(Action::StartDm(new_dm.matrix[0].clone())).as_slice(),
-        [Effect::Backend(Command::StartDm { id, discord: false })] if id == "@sam:test"
+        app.dispatch(Action::StartDm(new_dm.discord[1].clone())).as_slice(),
+        [Effect::Backend(Command::StartDm { id, discord: true })] if id == "7"
     ));
     assert!(
-        app.dispatch(Action::StartDm(new_dm.matrix[0].clone()))
+        app.dispatch(Action::StartDm(new_dm.discord[1].clone()))
             .is_empty(),
         "one at a time"
     );
     app.apply(Event::DmStarted(Err("offline".into())));
     let new_dm = app.state.new_dm.as_ref().unwrap();
     assert!(!new_dm.starting && new_dm.error.as_deref() == Some("offline"));
-    app.dispatch(Action::StartDm(contact("@sam:test", "Sam", false)));
+    app.dispatch(Action::StartDm(contact("7", "Sam", true)));
     // The room isn't listed yet; it opens when it is.
     app.apply(Event::DmStarted(Ok("!sam".into())));
     assert!(app.state.new_dm.is_none());

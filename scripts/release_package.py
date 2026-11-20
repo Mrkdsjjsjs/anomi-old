@@ -39,10 +39,8 @@ def names_home(contents):
     return any(str(Path.home()).encode(encoding) in contents for encoding in ("utf-8", "utf-16-le"))
 
 
-def source_snapshot(metadata, base, temporary, destination):
-    """Zips the repository's tracked source to destination, with the exact
-    upstream RTC source the AGPL dependencies came from when the build has
-    them. Returns whether it does."""
+def source_snapshot(base, temporary, destination):
+    """Zips the repository's tracked source to destination."""
     source = temporary / f"{base}-source"
     source.mkdir()
     # Only what the repository tracks: the folders also hold private,
@@ -52,19 +50,12 @@ def source_snapshot(metadata, base, temporary, destination):
     for name in filter(None, tracked):
         (source / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / name, source / name)
-    # Only the Matrix flavour builds the AGPL RTC dependencies.
-    rtc = next((package for package in metadata["packages"] if package["name"] == "matrix-rtc-core"), None)
-    if rtc:
-        rtc_root = Path(rtc["manifest_path"]).parent.parent.parent
-        shutil.copytree(rtc_root, source / "upstream/matrix-rust-rtc",
-                        ignore=shutil.ignore_patterns(".git", "target", "node_modules"))
     # Every file takes the commit's time, so two builds of one commit, such as
     # a nightly's Linux and Windows jobs, zip the same snapshot.
     committed = int(subprocess.check_output(["git", "log", "-1", "--format=%ct"], cwd=ROOT, timeout=30))
     for path in source.rglob("*"):
         os.utime(path, (committed, committed), follow_symlinks=False)
     zip_directory(source, destination)
-    return rtc is not None
 
 
 def dependency_notices(metadata, package, licenses, skia_archive, skia_source, webrtc):

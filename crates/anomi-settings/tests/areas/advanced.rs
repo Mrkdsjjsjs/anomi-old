@@ -131,6 +131,33 @@ fn optimization_chooses_where_streams_encode_by_key() {
     );
 }
 
+/// "Unlocked bitrate" is a switch under Optimization, off unless turned on,
+/// saying in plain words what passing Discord's 9 Mbit/s risks.
+#[test]
+fn the_bitrate_unlock_is_a_switch_that_says_what_it_risks() {
+    let page = sample::advanced();
+    assert!(!page.bitrate_unlocked, "off unless turned on");
+    let mut ui = simulate(&page);
+    assert!(ui.find("Unlocked bitrate").is_ok());
+    let risks = ui
+        .find(
+            "Lets a stream's bitrate limit be set by hand above 9 Mbit/s, up to 50. Discord documents 9 Mbit/s as the most; what its servers do with more isn't known: the stream may be cut off, lose packets or be dropped. A higher bitrate also needs an upload that fast, and loads the encoder and the people watching.",
+        )
+        .expect("what it risks, under it")
+        .bounds();
+    let switch = ui.find("Unlocked bitrate").unwrap().bounds();
+    assert!(risks.y > switch.y);
+    ui.click("Unlocked bitrate").expect("the switch is there");
+    assert_eq!(asked(ui), [Intent::BitrateUnlocked(true)]);
+    let on = Advanced {
+        bitrate_unlocked: true,
+        ..sample::advanced()
+    };
+    let mut ui = simulate(&on);
+    ui.click("Unlocked bitrate").expect("the switch is there");
+    assert_eq!(asked(ui), [Intent::BitrateUnlocked(false)]);
+}
+
 #[test]
 fn switches_the_system_lacks_are_left_out() {
     let page = Advanced {

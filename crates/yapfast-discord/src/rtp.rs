@@ -95,6 +95,17 @@ const REPAIRED_RID: u8 = 12;
 const VIDEO_ORIENTATION: u8 = 4;
 /// The extension block's size: its preamble, then three words of elements.
 const EXTENSIONS: usize = 4 + 12;
+/// A video packet's header and extensions, which come before its payload.
+const PREFIX: usize = HEADER + EXTENSIONS;
+/// The room a video packet is made with: its prefix, the largest payload
+/// (a chunk after a few bytes of descriptor, or a resend's sequence number
+/// before it), and the transport's tag and nonce, so sealing it never
+/// grows it.
+const ROOM: usize = PREFIX + CHUNK + 8 + TAG + 4;
+/// Packets sent kept to make the next ones in: as many as a frame takes,
+/// up to a large keyframe's at 50 Mbit/s, so a stream allocates no packet
+/// once it runs; one that never needs that many keeps fewer.
+const SPARE: usize = 1024;
 
 /// An RTP packet carrying one Opus frame from `ssrc`, with `timestamp` in
 /// 48 kHz samples and no extensions, as a call's audio goes. The marker
@@ -119,6 +130,20 @@ pub struct Packetizer {
     /// Counts every packet sent, for Discord's congestion control.
     transport: u16,
     picture: u16,
+    /// Packets sent, given back ([`Self::recycle`]) to make the next ones
+    /// in, at most [`SPARE`].
+    spare: Vec<Vec<u8>>,
+}
+
+/// A packet to fill: a spent one emptied, or a new one, with [`ROOM`] and
+/// its first [`PREFIX`] bytes kept for the header, which
+/// [`Packetizer::header`] writes once the payload is in.
+fn blank(spare: &mut Vec<Vec<u8>>) -> Vec<u8> {
+    let mut packet = spare.pop().unwrap_or_default();
+    packet.clear();
+    packet.reserve(ROOM);
+    packet.resize(PREFIX, 0);
+    packet
 }
 
 impl Packetizer {
@@ -130,6 +155,7 @@ impl Packetizer {
             rtx_sequence: rand::random(),
             transport: 1,
             picture: rand::random::<u16>() & 0x7fff,
+            spare: Vec::new(),
         }
     }
 
@@ -138,35 +164,45 @@ impl Packetizer {
         self.codec = codec;
     }
 
+    /// Takes back a packet once it's sent, to make a later one in, so a
+    /// stream's packets are made without allocating once it runs. Past
+    /// [`SPARE`] kept, it goes.
+    pub fn recycle(&mut self, packet: Vec<u8>) {
+        if self.spare.len() < SPARE && packet.capacity() >= ROOM {
+            self.spare.push(packet);
+        }
+    }
+
     /// The packets carrying `frame`, unencrypted, with `timestamp` in the
     /// 90 kHz clock. The last one has the marker bit. AV1 marks a keyframe
     /// in its first packet; the other codecs' payloads show it themselves.
+    /// Each is made in a packet [`Self::recycle`] gave back, when there is
+    /// one.
     pub fn packets(&mut self, frame: &[u8], timestamp: u32, keyframe: bool) -> Vec<Vec<u8>> {
-        let payloads = match self.codec {
-            Codec::Vp8 => self.vp8_payloads(frame),
-            Codec::H264 => h264_payloads(frame),
-            Codec::H265 => h265_payloads(frame),
-            Codec::Av1 => av1_payloads(frame, keyframe),
+        let spare = &mut self.spare;
+        let mut fresh = || blank(spare);
+        let mut packets = match self.codec {
+            Codec::Vp8 => vp8_payloads(frame, &mut self.picture, &mut fresh),
+            Codec::H264 => h264_payloads(frame, &mut fresh),
+            Codec::H265 => h265_payloads(frame, &mut fresh),
+            Codec::Av1 => av1_payloads(frame, keyframe, &mut fresh),
         };
-        let count = payloads.len();
+        let count = packets.len();
         let payload_type = self.codec.payload_types().0;
-        payloads
-            .into_iter()
-            .enumerate()
-            .map(|(index, payload)| {
-                let packet = self.header(
-                    payload_type,
-                    index + 1 == count,
-                    self.sequence,
-                    timestamp,
-                    self.ssrc,
-                    RID,
-                    &payload,
-                );
-                self.sequence = self.sequence.wrapping_add(1);
-                packet
-            })
-            .collect()
+        for (index, packet) in packets.iter_mut().enumerate() {
+            let sequence = self.sequence;
+            self.header(
+                packet,
+                payload_type,
+                index + 1 == count,
+                sequence,
+                timestamp,
+                self.ssrc,
+                RID,
+            );
+            self.sequence = self.sequence.wrapping_add(1);
+        }
+        packets
     }
 
     /// A packet sent before, again: on `rtx_ssrc` with the RTX payload type
@@ -181,83 +217,101 @@ impl Packetizer {
         if sent.ssrc != self.ssrc {
             return None;
         }
-        let payload = [&sent.sequence.to_be_bytes()[..], sent.payload].concat();
-        let packet = self.header(
+        let mut packet = blank(&mut self.spare);
+        packet.extend_from_slice(&sent.sequence.to_be_bytes());
+        packet.extend_from_slice(sent.payload);
+        let sequence = self.rtx_sequence;
+        self.header(
+            &mut packet,
             rtx_payload_type,
             sent.marker,
-            self.rtx_sequence,
+            sequence,
             sent.timestamp,
             rtx_ssrc,
             REPAIRED_RID,
-            &payload,
         );
         self.rtx_sequence = self.rtx_sequence.wrapping_add(1);
         Some(packet)
     }
 
-    /// An RTP packet with the extensions a Discord client sends, naming
-    /// the stream with `rid`, and the next transport sequence number.
+    /// Writes the RTP header with the extensions a Discord client sends,
+    /// naming the stream with `rid`, and the next transport sequence
+    /// number, over the first [`PREFIX`] bytes of `packet`, which [`blank`]
+    /// kept for it.
     #[allow(clippy::too_many_arguments)]
     fn header(
         &mut self,
+        packet: &mut [u8],
         payload_type: u8,
         marker: bool,
         sequence: u16,
         timestamp: u32,
         ssrc: u32,
         rid: u8,
-        payload: &[u8],
-    ) -> Vec<u8> {
-        let mut packet = Vec::with_capacity(HEADER + EXTENSIONS + payload.len() + 20);
+    ) {
+        let header = &mut packet[..PREFIX];
         // Version 2 with the extension bit.
-        packet.extend_from_slice(&[0x90, u8::from(marker) << 7 | payload_type]);
-        packet.extend_from_slice(&sequence.to_be_bytes());
-        packet.extend_from_slice(&timestamp.to_be_bytes());
-        packet.extend_from_slice(&ssrc.to_be_bytes());
-        packet.extend_from_slice(&[0xbe, 0xde, 0, ((EXTENSIONS - 4) / 4) as u8]);
-        let mut extension = |id: u8, value: &[u8]| {
-            packet.push(id << 4 | (value.len() - 1) as u8);
-            packet.extend_from_slice(value);
-        };
-        extension(TRANSPORT_SEQUENCE, &self.transport.to_be_bytes());
-        // Screen content.
-        extension(CONTENT_TYPE, &[1]);
-        extension(rid, STREAM_RID.as_bytes());
-        packet.resize(HEADER + EXTENSIONS, 0);
-        packet.extend_from_slice(payload);
+        header[0] = 0x90;
+        header[1] = u8::from(marker) << 7 | payload_type;
+        header[2..4].copy_from_slice(&sequence.to_be_bytes());
+        header[4..8].copy_from_slice(&timestamp.to_be_bytes());
+        header[8..12].copy_from_slice(&ssrc.to_be_bytes());
+        header[12..16].copy_from_slice(&[0xbe, 0xde, 0, ((EXTENSIONS - 4) / 4) as u8]);
+        let mut at = 16;
+        let transport = self.transport.to_be_bytes();
+        for (id, value) in [
+            (TRANSPORT_SEQUENCE, &transport[..]),
+            // Screen content.
+            (CONTENT_TYPE, &[1u8][..]),
+            (rid, STREAM_RID.as_bytes()),
+        ] {
+            header[at] = id << 4 | (value.len() - 1) as u8;
+            header[at + 1..at + 1 + value.len()].copy_from_slice(value);
+            at += 1 + value.len();
+        }
+        header[at..].fill(0);
         self.transport = self.transport.wrapping_add(1);
-        packet
-    }
-
-    /// VP8 payloads: each chunk after the extended payload descriptor with
-    /// a 15-bit picture id; S marks the start of the frame's first partition.
-    fn vp8_payloads(&mut self, frame: &[u8]) -> Vec<Vec<u8>> {
-        let payloads = frame
-            .chunks(CHUNK)
-            .enumerate()
-            .map(|(index, chunk)| {
-                let start = if index == 0 { 0x10 } else { 0 };
-                let mut payload = vec![0x80 | start, 0x80];
-                payload.extend_from_slice(&(0x8000 | self.picture).to_be_bytes());
-                payload.extend_from_slice(chunk);
-                payload
-            })
-            .collect();
-        self.picture = (self.picture + 1) & 0x7fff;
-        payloads
     }
 }
 
-/// H264 payloads in packetization mode 1: a NAL unit that fits goes whole,
-/// a bigger one in fragmentation units (FU-A).
-fn h264_payloads(frame: &[u8]) -> Vec<Vec<u8>> {
+/// VP8 packets: each chunk after the extended payload descriptor with a
+/// 15-bit picture id; S marks the start of the frame's first partition.
+/// Each packet comes from `blank`, its header to write.
+fn vp8_payloads(
+    frame: &[u8],
+    picture: &mut u16,
+    blank: &mut impl FnMut() -> Vec<u8>,
+) -> Vec<Vec<u8>> {
+    let id = (0x8000 | *picture).to_be_bytes();
+    let payloads = frame
+        .chunks(CHUNK)
+        .enumerate()
+        .map(|(index, chunk)| {
+            let start = if index == 0 { 0x10 } else { 0 };
+            let mut payload = blank();
+            payload.extend_from_slice(&[0x80 | start, 0x80]);
+            payload.extend_from_slice(&id);
+            payload.extend_from_slice(chunk);
+            payload
+        })
+        .collect();
+    *picture = (*picture + 1) & 0x7fff;
+    payloads
+}
+
+/// H264 packets in packetization mode 1: a NAL unit that fits goes whole,
+/// a bigger one in fragmentation units (FU-A). Each packet comes from
+/// `blank`, its header to write.
+fn h264_payloads(frame: &[u8], blank: &mut impl FnMut() -> Vec<u8>) -> Vec<Vec<u8>> {
     let mut payloads = vec![];
     for unit in nal_units(frame) {
         let Some((&header, body)) = unit.split_first() else {
             continue;
         };
         if unit.len() <= CHUNK {
-            payloads.push(unit.to_vec());
+            let mut payload = blank();
+            payload.extend_from_slice(unit);
+            payloads.push(payload);
             continue;
         }
         let chunks: Vec<&[u8]> = body.chunks(CHUNK - 2).collect();
@@ -272,7 +326,8 @@ fn h264_payloads(frame: &[u8]) -> Vec<Vec<u8>> {
             if index == last {
                 fragment |= 0x40;
             }
-            let mut payload = vec![(header & 0xe0) | 28, fragment];
+            let mut payload = blank();
+            payload.extend_from_slice(&[(header & 0xe0) | 28, fragment]);
             payload.extend_from_slice(chunk);
             payloads.push(payload);
         }
@@ -280,15 +335,18 @@ fn h264_payloads(frame: &[u8]) -> Vec<Vec<u8>> {
     payloads
 }
 
-/// RFC 7798's payloads for an H265 access unit: each NAL unit whole when it
+/// RFC 7798's packets for an H265 access unit: each NAL unit whole when it
 /// fits, and a larger one as fragmentation units (type 49), whose payload
 /// header keeps the unit's F bit, layer and temporal id, and whose FU header
-/// carries its type with start and end flags.
-fn h265_payloads(frame: &[u8]) -> Vec<Vec<u8>> {
+/// carries its type with start and end flags. Each packet comes from
+/// `blank`, its header to write.
+fn h265_payloads(frame: &[u8], blank: &mut impl FnMut() -> Vec<u8>) -> Vec<Vec<u8>> {
     let mut payloads = vec![];
     for unit in nal_units(frame) {
         if unit.len() <= CHUNK {
-            payloads.push(unit.to_vec());
+            let mut payload = blank();
+            payload.extend_from_slice(unit);
+            payloads.push(payload);
             continue;
         }
         let ([first, second], body) = (unit.first_chunk().copied().unwrap_or_default(), &unit[2..]);
@@ -303,7 +361,8 @@ fn h265_payloads(frame: &[u8]) -> Vec<Vec<u8>> {
             if index == last {
                 fragment |= 0x40;
             }
-            let mut payload = vec![(first & 0x81) | (49 << 1), second, fragment];
+            let mut payload = blank();
+            payload.extend_from_slice(&[(first & 0x81) | (49 << 1), second, fragment]);
             payload.extend_from_slice(chunk);
             payloads.push(payload);
         }
@@ -376,8 +435,12 @@ pub fn obu_elements(frame: &[u8]) -> Option<Vec<Vec<u8>>> {
 /// starts with the sequence header, as libwebrtc's packetizer marks it, and
 /// receivers take a frame starting so for a keyframe. OBUs of different
 /// temporal or spatial layers never share a packet. A malformed frame gives
-/// no packets.
-fn av1_payloads(frame: &[u8], keyframe: bool) -> Vec<Vec<u8>> {
+/// no packets. Each packet comes from `blank`, its header to write.
+fn av1_payloads(
+    frame: &[u8],
+    keyframe: bool,
+    blank: &mut impl FnMut() -> Vec<u8>,
+) -> Vec<Vec<u8>> {
     let elements = (frame.len() <= MAX_FRAME)
         .then(|| obu_elements(frame))
         .flatten();
@@ -440,7 +503,8 @@ fn av1_payloads(frame: &[u8], keyframe: bool) -> Vec<Vec<u8>> {
             if index == 0 && starts_sequence {
                 header |= 0x08;
             }
-            let mut payload = vec![header];
+            let mut payload = blank();
+            payload.push(header);
             for (at, piece) in pieces.iter().enumerate() {
                 if count == 0 || at + 1 < count {
                     write_leb128(piece.len(), &mut payload);
@@ -1049,25 +1113,31 @@ impl Transport {
         })
     }
 
-    /// Encrypts `packet` after its first `clear` bytes, in place.
+    /// Encrypts `packet` after its first `clear` bytes, in place: a packet
+    /// made with room for the tag and the counter isn't grown.
     pub fn seal(&mut self, packet: &mut Vec<u8>, clear: usize) -> Result<()> {
         let counter = self.counter.to_be_bytes();
         self.counter = self.counter.wrapping_add(1);
         let (header, body) = packet.split_at_mut(clear);
+        let kept = |tag: &[u8]| {
+            let mut bytes = [0u8; TAG];
+            bytes.copy_from_slice(tag);
+            bytes
+        };
         let tag = match &self.cipher {
             Cipher::Aes(cipher) => {
                 let mut nonce = aes_gcm::Nonce::default();
                 nonce[..4].copy_from_slice(&counter);
                 cipher
                     .encrypt_in_place_detached(&nonce, header, body)
-                    .map(|tag| tag.to_vec())
+                    .map(|tag| kept(&tag[..]))
             }
             Cipher::XChaCha(cipher) => {
                 let mut nonce = chacha20poly1305::XNonce::default();
                 nonce[..4].copy_from_slice(&counter);
                 cipher
                     .encrypt_in_place_detached(&nonce, header, body)
-                    .map(|tag| tag.to_vec())
+                    .map(|tag| kept(&tag[..]))
             }
         }
         .map_err(|_| anyhow!("could not encrypt a stream packet"))?;
@@ -1218,30 +1288,69 @@ pub fn bandwidth_estimate(mut rtcp: &[u8], ssrc: u32) -> Option<u64> {
 }
 
 /// The video packets sent lately, unencrypted, to resend when a viewer
-/// reports one lost: about two seconds at 9 Mbit/s.
+/// reports one lost: [`KEPT`] at least, about two seconds at 9 Mbit/s, and
+/// about a second at a higher cap ([`History::fit`]). Each slot keeps its
+/// buffer, so remembering a packet copies it without allocating once the
+/// slots are used; a slot no packet reached takes no memory.
 pub struct History {
-    packets: Vec<Option<(u16, Vec<u8>)>>,
+    /// By sequence number, modulo their count, a power of two: the packet's
+    /// sequence number while it holds one, and its bytes.
+    packets: Vec<(Option<u16>, Vec<u8>)>,
 }
+
+/// The fewest packets a [`History`] keeps.
+const KEPT: usize = 2048;
+/// The most: about 1.6 s at the unlock's 50 Mbit/s.
+const MOST_KEPT: usize = 8192;
 
 impl Default for History {
     fn default() -> Self {
-        Self {
-            packets: vec![None; 2048],
-        }
+        Self::with_slots(KEPT)
     }
 }
 
 impl History {
+    fn with_slots(slots: usize) -> Self {
+        Self {
+            packets: (0..slots).map(|_| (None, Vec::new())).collect(),
+        }
+    }
+
+    /// Room for about a second of packets at `bitrate` bit/s, between
+    /// [`KEPT`] and [`MOST_KEPT`], keeping those it holds. It only grows:
+    /// a lower cap leaves it as it is.
+    pub fn fit(&mut self, bitrate: u64) {
+        let second = usize::try_from(bitrate / 8 / CHUNK as u64).unwrap_or(MOST_KEPT);
+        let wanted = second.next_power_of_two().clamp(KEPT, MOST_KEPT);
+        if wanted <= self.packets.len() {
+            return;
+        }
+        let held = std::mem::replace(&mut self.packets, Self::with_slots(wanted).packets);
+        for (sequence, bytes) in held {
+            if let Some(sequence) = sequence {
+                self.packets[usize::from(sequence) % wanted] = (Some(sequence), bytes);
+            }
+        }
+    }
+
+    /// How many packets it keeps.
+    pub fn slots(&self) -> usize {
+        self.packets.len()
+    }
+
     pub fn remember(&mut self, packet: &[u8]) {
         if let Some(sent) = parse(packet) {
             let slot = usize::from(sent.sequence) % self.packets.len();
-            self.packets[slot] = Some((sent.sequence, packet.to_vec()));
+            let (kept, bytes) = &mut self.packets[slot];
+            *kept = Some(sent.sequence);
+            bytes.clear();
+            bytes.extend_from_slice(packet);
         }
     }
 
     pub fn get(&self, sequence: u16) -> Option<&[u8]> {
         match &self.packets[usize::from(sequence) % self.packets.len()] {
-            Some((kept, packet)) if *kept == sequence => Some(packet),
+            (Some(kept), packet) if *kept == sequence => Some(packet),
             _ => None,
         }
     }
@@ -1373,12 +1482,17 @@ impl Held {
 const GIVE_UP: std::time::Duration = std::time::Duration::from_millis(300);
 const ASK_AGAIN: std::time::Duration = std::time::Duration::from_millis(80);
 const ASKS: u32 = 3;
-/// Packets held at most while one is missing, about a second at 9 Mbit/s.
-const HELD: usize = 1000;
+/// Packets held at most while one is missing: more than [`GIVE_UP`]'s
+/// worth at 50 Mbit/s, the most a stream sends with the unlock, so a
+/// missing packet is waited for as long there as at 9 Mbit/s.
+const HELD: usize = 4096;
+/// A packet this far past the highest one means the sender started again,
+/// and the buffer starts with it: about a second at 9 Mbit/s.
+const AHEAD: usize = 1000;
 /// Missing packets waited for at most, and asked for at once: a sender
 /// skipping far ahead again and again would otherwise run up thousands, and
 /// a request too large to send.
-const MAX_MISSING: usize = HELD;
+const MAX_MISSING: usize = AHEAD;
 const MAX_ASKED: usize = 256;
 
 /// Puts one SSRC's packets back in sequence for the assembler, as they can
@@ -1436,7 +1550,7 @@ impl Reorder {
         let recovered = self.missing.remove(&sequence).is_some();
         match self.highest {
             // Far ahead: the sender started again, so start with it.
-            Some(highest) if sequence > highest + HELD as u64 => {
+            Some(highest) if sequence > highest + AHEAD as u64 => {
                 self.held.clear();
                 self.missing.clear();
                 self.next = Some(sequence);
@@ -1925,7 +2039,7 @@ mod tests {
         let mut sequence = 0u16;
         for _ in 0..2000 {
             reorder.insert(held(sequence), at(0));
-            sequence = sequence.wrapping_add(HELD as u16 - 1);
+            sequence = sequence.wrapping_add(AHEAD as u16 - 1);
         }
         assert!(reorder.missing.len() <= MAX_MISSING);
         assert!(reorder.to_ask(at(0)).len() <= MAX_ASKED);
@@ -2560,6 +2674,62 @@ mod tests {
         assert_eq!(again[21], 0xc2, "the repaired stream id, not the stream id");
         assert!(history.get(first.wrapping_sub(1)).is_none(), "never sent");
         assert!(packetizer.retransmit(&again, 79).is_none(), "not video");
+    }
+
+    /// A stream's packets are made in those it sent, given back: at 50
+    /// Mbit/s, some five thousand a second, none is allocated once it runs,
+    /// and sealing one doesn't grow it. What it sends stays the same.
+    #[test]
+    fn makes_packets_in_those_sent() {
+        let mut packetizer = Packetizer::new(77, Codec::H264);
+        let frame = [&[0, 0, 0, 1, 0x65][..], &[9; 30_000]].concat();
+        let mut sent = packetizer.packets(&frame, 9000, false);
+        let made: Vec<*const u8> = sent.iter().map(|packet| packet.as_ptr()).collect();
+        let first = sent[0].clone();
+        let mut transport = Transport::new("aead_aes256_gcm_rtpsize", &[7; 32]).unwrap();
+        let room = sent[0].capacity();
+        let clear = rtp_clear_len(&sent[0]).unwrap();
+        transport.seal(&mut sent[0], clear).unwrap();
+        assert_eq!(sent[0].capacity(), room, "sealed in its room");
+        assert_eq!(sent[0].as_ptr(), made[0]);
+        for packet in sent {
+            packetizer.recycle(packet);
+        }
+        let again = packetizer.packets(&frame, 12000, false);
+        assert!(
+            again.iter().all(|packet| made.contains(&packet.as_ptr())),
+            "each made in one sent"
+        );
+        let (before, after) = (parse(&first).unwrap(), parse(&again[0]).unwrap());
+        assert_eq!(before.payload, after.payload);
+        assert_eq!(after.sequence, before.sequence.wrapping_add(made.len() as u16));
+        assert_eq!(&again[0][12..16], &first[12..16], "the extensions' block");
+        assert_eq!(again[0][21], 0xb2, "the stream id");
+        assert!(parse(again.last().unwrap()).unwrap().marker);
+        // A packet made without room isn't kept.
+        packetizer.recycle(vec![0; 4]);
+        assert!(packetizer.spare.iter().all(|packet| packet.capacity() >= ROOM));
+    }
+
+    /// The history keeps about a second at the cap, two seconds' worth at
+    /// 9 Mbit/s and 8192 packets at 50, keeping what it held as it grows;
+    /// a lower cap leaves it.
+    #[test]
+    fn keeps_about_a_second_at_the_cap() {
+        let mut packetizer = Packetizer::new(77, Codec::H264);
+        let mut history = History::default();
+        history.fit(9_000_000);
+        assert_eq!(history.slots(), 2048);
+        let sent = packetizer.packets(&[0, 0, 0, 1, 0x65, 1, 2, 3], 9000, false);
+        history.remember(&sent[0]);
+        let sequence = parse(&sent[0]).unwrap().sequence;
+        history.fit(20_000_000);
+        assert_eq!(history.slots(), 4096);
+        history.fit(50_000_000);
+        assert_eq!(history.slots(), 8192);
+        assert_eq!(history.get(sequence), Some(&sent[0][..]), "kept");
+        history.fit(9_000_000);
+        assert_eq!(history.slots(), 8192, "only grows");
     }
 
     #[test]

@@ -1,50 +1,8 @@
-//! Signing in, restoring and recovering a session, and signing out.
+//! Signing out, and what's left when the backend stops.
 
 use super::*;
 
 impl Application {
-    pub(super) fn login(
-        &mut self,
-        homeserver: String,
-        username: String,
-        password: String,
-    ) -> Vec<Effect> {
-        if self.state.busy || self.state.account.is_some() || self.state.preview {
-            return vec![];
-        }
-        let homeserver = homeserver.trim().to_owned();
-        let username = username.trim().to_owned();
-        if homeserver.is_empty() || username.is_empty() || password.is_empty() {
-            self.state.notice =
-                Some(yapfast_lang::tr!("Enter your homeserver, Matrix ID, and password.").into());
-            return vec![];
-        }
-        self.start(chat::Start::Login {
-            homeserver,
-            username,
-            password,
-        })
-    }
-
-    pub(super) fn recover(&mut self, key: String) -> Vec<Effect> {
-        if self.state.busy || self.state.preview || self.state.account.is_none() {
-            return vec![];
-        }
-        if self.state.voice.active() {
-            self.state.notice =
-                Some(yapfast_lang::tr!("Leave voice before recovering this device.").into());
-            return vec![];
-        }
-        let key = key.trim().to_owned();
-        if key.is_empty() {
-            self.state.notice = Some(yapfast_lang::tr!("Enter your Matrix recovery key.").into());
-            return vec![];
-        }
-        self.state.busy = true;
-        self.state.notice = Some(yapfast_lang::tr!("Recovering encryption keys...").into());
-        vec![Effect::Backend(Command::Recover(key))]
-    }
-
     pub(super) fn logout(&mut self) -> Vec<Effect> {
         if self.state.busy || self.state.sending.is_some() {
             return vec![];
@@ -95,7 +53,7 @@ impl Application {
                 }
                 self.starting_dm = false;
             }
-            Command::Recover(_) | Command::RefreshTrust | Command::Logout => {
+            Command::Logout => {
                 self.state.busy = false;
             }
             _ => {}

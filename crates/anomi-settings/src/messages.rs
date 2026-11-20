@@ -109,7 +109,9 @@ pub fn view(page: &Messages, motion: Motion) -> impl View<Intent> + '_ {
             .on_toggle(Intent::BoostGems)
             .view(),
         switch(tr!("Let others see when you're typing"), page.share_typing, motion)
-            .description(typing(page))
+            .description(tr!(
+                "Discord shows \"typing...\" while you write. Others still show here when they type."
+            ))
             .on_toggle(Intent::ShareTyping)
             .view(),
         switch(tr!("Mention people you reply to"), page.reply_ping, motion)
@@ -130,19 +132,6 @@ pub fn view(page: &Messages, motion: Motion) -> impl View<Intent> + '_ {
         .view(),
     ];
     column(rows).spacing(SPACING).width(Length::Fill)
-}
-
-/// What the typing switch says, naming the networks in use.
-fn typing(page: &Messages) -> &'static str {
-    if page.matrix && page.discord {
-        tr!(
-            "Discord and Matrix show \"typing...\" while you write. Others still show here when they type."
-        )
-    } else if page.matrix {
-        tr!("Matrix shows \"typing...\" while you write. Others still show here when they type.")
-    } else {
-        tr!("Discord shows \"typing...\" while you write. Others still show here when they type.")
-    }
 }
 
 /// A heading over a row of choices.

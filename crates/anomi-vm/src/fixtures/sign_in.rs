@@ -3,7 +3,7 @@
 //! nobody signed in.
 
 use crate::Vm;
-use crate::sign_in::{Code, Link, SignIn, Verify};
+use crate::sign_in::{Code, Link, SignIn};
 
 use super::shell;
 
@@ -100,49 +100,6 @@ pub fn graphics_notice() -> Vm {
         ),
         ..SignIn::default()
     })
-}
-
-/// The Matrix sign-in, empty.
-pub fn matrix() -> Vm {
-    with(SignIn {
-        matrix_build: true,
-        homeserver: "matrix.org".into(),
-        ..SignIn::default()
-    })
-}
-
-/// The Matrix sign-in refused, with a saved session to retry.
-pub fn matrix_refused() -> Vm {
-    with(SignIn {
-        matrix_build: true,
-        homeserver: "matrix.org".into(),
-        username: "@alice:matrix.org".into(),
-        password: "secret".into(),
-        notice: "Wrong user name or password.".into(),
-        restore_available: true,
-        ..SignIn::default()
-    })
-}
-
-/// The Matrix sign-in while it connects.
-pub fn matrix_busy() -> Vm {
-    with(SignIn {
-        matrix_build: true,
-        busy: true,
-        homeserver: "matrix.org".into(),
-        username: "@alice:matrix.org".into(),
-        ..SignIn::default()
-    })
-}
-
-/// The direct messages of an unverified device: the banner is on.
-pub fn verify() -> Vm {
-    let mut vm = shell::dm_home();
-    vm.sign_in.verify = Verify {
-        unverified: true,
-        ..Verify::default()
-    };
-    vm
 }
 
 /// Linking from the settings' Discord page, signed in: the code over the

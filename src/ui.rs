@@ -208,8 +208,6 @@ pub fn run(
         adapter.borrow_mut().action(&window, Action::Preview);
     } else if yapfast_core::chat::can_restore(&adapter.borrow().root) {
         adapter.borrow_mut().action(&window, Action::Restore);
-    } else {
-        window.invoke_focus_sign_in();
     }
     let notice = SharedString::from(plan.notice.unwrap_or_default());
     window.set_graphics_notice(notice.clone());
@@ -290,10 +288,6 @@ fn prepare(window: &YapfastWindow) {
     let autostart = AUTOSTART.get();
     window.set_autostart_available(autostart);
     window.set_start_on_sign_in(autostart && autostart::enabled());
-    // Without Matrix everything is Discord's, so its badge would say nothing.
-    window
-        .global::<Badges>()
-        .set_discord(cfg!(feature = "matrix"));
     if isolated_display()
         && let Ok(size) = std::env::var("YAPFAST_UI_TEST_SIZE")
         && let Some((width, height)) = size.split_once('x')

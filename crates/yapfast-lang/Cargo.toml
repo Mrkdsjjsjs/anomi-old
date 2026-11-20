@@ -2,7 +2,7 @@
 name = "yapfast-lang"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 description = "The language of Yapfast's interface: the translations in lang/, and the text of the chosen one"

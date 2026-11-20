@@ -1,5 +1,8 @@
 //! How Yapfast presents itself to Discord. The gateway and HTTP API both carry the
-//! same description, matching a current desktop browser on the web client.
+//! same description, Discord's web client in the browser [`yapfast_http`]
+//! makes every connection as: its User-Agent and version come from there, and
+//! the operating system from that User-Agent, so the description can't
+//! disagree with the TLS, HTTP/2 and headers Discord sees.
 
 use std::{
     sync::{
@@ -29,35 +32,29 @@ pub fn test_server() -> Option<&'static str> {
 /// The token Yapfast uses with the test server.
 pub const TEST_TOKEN: &str = "yapfast-test-token";
 
-/// The Firefox release Yapfast claims to be: one behind the newest, as most
-/// people's browsers are. Firefox 155 came on 1 September 2026, and one has
-/// come every two weeks since; revisit this if Mozilla changes the cadence
-/// again.
-fn firefox_version() -> i64 {
-    const FIRST: i64 = 155;
-    let first = chrono::NaiveDate::from_ymd_opt(2026, 9, 1).expect("a real date");
-    let days = (chrono::Utc::now().date_naive() - first).num_days();
-    FIRST + days.max(0) / 14 - 1
+/// The `User-Agent` of the browser every connection presents as: the Firefox
+/// of [`yapfast_http::PROFILE`], on this machine's operating system. Its
+/// version is that profile's, not the newest Firefox's: claiming a version
+/// whose TLS and HTTP/2 Yapfast can't show would give it away.
+pub fn user_agent() -> &'static str {
+    yapfast_http::user_agent()
 }
 
-/// The `User-Agent` of a current Firefox on Linux.
-pub fn user_agent() -> &'static str {
-    static AGENT: OnceLock<String> = OnceLock::new();
-    AGENT.get_or_init(|| {
-        let version = firefox_version();
-        format!(
-            "Mozilla/5.0 (X11; Linux x86_64; rv:{version}.0) Gecko/20100101 Firefox/{version}.0"
-        )
-    })
+/// The operating system and its version, as Discord's web client reads them
+/// from the browser's User-Agent: `Windows NT 10.0` is Windows 10, and Linux
+/// has no version there.
+fn os() -> (&'static str, &'static str) {
+    if user_agent().contains("Windows NT 10.0") {
+        ("Windows", "10")
+    } else {
+        ("Linux", "")
+    }
 }
 
 /// The web client's language, sent in `X-Discord-Locale`: Yapfast is in
-/// English, as [`properties`]' `system_locale` says.
+/// English, as [`properties`]' `system_locale` says and as the browser's
+/// `Accept-Language` ([`yapfast_http::accept_language`]) asks first.
 pub const LOCALE: &str = "en-US";
-
-/// The `Accept-Language` the web client sends from an English Firefox's
-/// `navigator.languages`, `["en-US", "en"]`.
-pub const ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
 
 /// This machine's time zone, such as `Europe/Prague`, as the web client
 /// sends it in `X-Discord-Timezone`; none when the system doesn't say.
@@ -183,15 +180,16 @@ fn heartbeat_session_id() -> String {
 
 /// The `properties` object sent when identifying on the gateway.
 pub fn properties() -> Value {
+    let (os, os_version) = os();
     json!({
-        "os": "Linux",
+        "os": os,
         "browser": "Firefox",
         "device": "",
-        "system_locale": "en-US",
+        "system_locale": LOCALE,
         "has_client_mods": false,
         "browser_user_agent": user_agent(),
-        "browser_version": format!("{}.0", firefox_version()),
-        "os_version": "",
+        "browser_version": yapfast_http::version(),
+        "os_version": os_version,
         "referrer": "",
         "referring_domain": "",
         "referrer_current": "",
@@ -242,9 +240,44 @@ mod tests {
         assert_eq!(&launch_id()[14..15], "4");
     }
 
+    /// The gateway's properties and X-Super-Properties name the browser the
+    /// connections are: the same User-Agent, version and system as the
+    /// profile yapfast-http makes them with. A new profile or platform that
+    /// doesn't fit fails here.
     #[test]
-    fn claims_a_firefox_from_this_year() {
-        assert!(firefox_version() >= 157);
-        assert!(user_agent().contains(&format!("Firefox/{}.0", firefox_version())));
+    fn claims_the_browser_the_connections_are() {
+        let claimed = properties();
+        assert_eq!(claimed["browser_user_agent"], yapfast_http::user_agent());
+        assert_eq!(claimed["browser_version"], yapfast_http::version());
+        let browser = claimed["browser"].as_str().unwrap();
+        assert!(
+            format!("{:?}", yapfast_http::PROFILE).starts_with(browser),
+            "{:?} isn't {browser}",
+            yapfast_http::PROFILE
+        );
+        assert!(user_agent().contains(&format!("{browser}/{}", yapfast_http::version())));
+        let system = (
+            claimed["os"].as_str().unwrap(),
+            claimed["os_version"].as_str().unwrap(),
+        );
+        #[cfg(windows)]
+        assert_eq!(system, ("Windows", "10"));
+        #[cfg(not(windows))]
+        assert_eq!(system, ("Linux", ""));
+        // The locale is the first language the browser asks for.
+        assert!(yapfast_http::accept_language().starts_with(LOCALE));
+        assert_eq!(claimed["system_locale"], LOCALE);
+        // X-Super-Properties is the same description.
+        let header: Value =
+            serde_json::from_slice(&STANDARD.decode(super_properties()).unwrap()).unwrap();
+        for field in [
+            "os",
+            "os_version",
+            "browser",
+            "browser_user_agent",
+            "browser_version",
+        ] {
+            assert_eq!(header[field], claimed[field], "{field}");
+        }
     }
 }

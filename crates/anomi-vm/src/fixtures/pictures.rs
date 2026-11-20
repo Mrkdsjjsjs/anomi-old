@@ -130,7 +130,7 @@ fn ring(colour: [u8; 3], side: u32, x: u32, y: u32) -> [u8; 4] {
     }
 }
 
-/// The Matrix fixture's sunset gradient the fake sends as a spoiler.
+/// The sunset gradient the fake sends as a spoiler.
 pub fn sunset(width: u32, height: u32) -> image::Handle {
     made(format!("sunset {width} {height}"), || {
         draw(width, height, |x, y| {

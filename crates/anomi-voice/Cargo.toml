@@ -2,7 +2,7 @@
 name = "anomi-voice"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 description = "Voice in Anomi's iced interface: the dock, the stage and its tiles, call controls, devices, sharing and the soundboard"

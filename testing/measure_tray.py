@@ -25,8 +25,8 @@ back ten times a second, someone starts to type twice a second and Bob posts
 every second, with the member list shown and hidden, then behind another
 window (weston-flower over it) and in the tray; `images`, memory after
 scrolling up through #general's hundred pictures and back; `scroll`, scrolling
-it with 60 touchpad events a second, up and down by turns every two seconds as
-testing/measure_scroll.py does; `call`, the Lounge call at rest, with three
+it with 60 touchpad events a second, up and down by turns every two seconds;
+`call`, the Lounge call at rest, with three
 people speaking, and watching Bob's stream. Every run also measures the start:
 the time to the window's first frame and to settling, and memory then. Each
 sample adds the CPU of the main thread, where the interface runs, each
@@ -242,7 +242,7 @@ def images(notes, results):
 
 def scrolling(notes, results):
     """60 touchpad events a second over the timeline, up and down by turns
-    every two seconds, as testing/measure_scroll.py sends them."""
+    every two seconds."""
     session('do', 'move 700 450')
     seat = display_environment()['XDG_RUNTIME_DIR'] + '/yapfast-input.sock'
     done = threading.Event()

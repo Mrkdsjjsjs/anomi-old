@@ -25,7 +25,8 @@ hash there; a `nix build` with the old one prints it.
 
 ## Dependencies
 
-Yapfast pins Rust 1.97.1, Slint's master at `ac7d423f` and Skia 0.157.0.
+Yapfast pins Rust 1.98.1, Slint's master at `ac7d423f` and Skia 0.157.0.
+Rust 1.98 is what wreq 0.16 and wreq-util 0.2 ask for (below).
 Cargo.lock pins the complete Rust graph. That commit calls itself 1.19.0, which
 isn't released: `[patch.crates-io]` in Cargo.toml takes `=1.19.0` and the crates
 it needs from the commit. Its generated Rust compiles in half the time of
@@ -174,9 +175,6 @@ and again when `maximum` changes. The compiler virtualizes any component named
 `ListView` with the viewport's lengths, so Yapfast's is virtualized as upstream's
 is. Compare it with the Fluent style's when upgrading Slint.
 
-The Matrix SDK revision follows the pinned MatrixRTC revision. Keep those two
-sources together when upgrading.
-
 Every emoji Yapfast draws, in the picker, reactions, suggestions, names and
 message text, is drawn from Twemoji's pictures, the artwork Discord's client uses: `vendor/twemoji` is
 `assets/72x72` from https://github.com/discord/twemoji at the revision
@@ -198,15 +196,15 @@ tract `^0.21.4`, but tract 0.21.10 changed an API it uses, so Cargo.lock keeps
 tract at 0.21.4, the version DeepFilterNet's own lockfile has.
 
 LiveKit's Rust crates must stay on the mutually compatible versions in
-Cargo.lock. Do not run an unrestricted `cargo update`. Upgrade against the
-MatrixRTC lockfile and rebuild the native media stack. On Linux, the Nix shell
+Cargo.lock. Do not run an unrestricted `cargo update`. Upgrade them together
+and rebuild the native media stack. On Linux, the Nix shell
 supplies libwebrtc `webrtc-51ef663`, matching webrtc-sys-build 0.3.18. Updating
 that crate requires updating the archive URL and checksum in `nix/native.nix`
 (Linux) and `nix/flake.nix` (Windows) too.
 
 The Linux environment includes ALSA, PulseAudio, fontconfig, FreeType, GLib,
-Wayland, X11, Vulkan, OpenGL, OpenSSL, Clang 21, CMake, pkg-config, Protobuf
-and NASM. It uses the host's graphics driver under `/run/opengl-driver/lib`. A
+Wayland, X11, Vulkan, OpenGL, OpenSSL, Clang 21, CMake, pkg-config, Protobuf,
+NASM and Git. It uses the host's graphics driver under `/run/opengl-driver/lib`. A
 real display session is required to open the window. Skia Software is the
 default; `--renderer gpu` uses Skia GPU and falls back to Skia Software if the
 GPU fails. The Nix shell provides a checksum-pinned, prepared Skia archive
@@ -214,8 +212,8 @@ whose JPEG table is privately named to avoid a WebRTC symbol collision. See
 [the Slint client](slint-client.md).
 
 The first build downloads dependencies and compiles native C++. Cargo uses every
-core. On a machine with 8 GB of memory, set `CARGO_BUILD_JOBS=2` so the Matrix
-SDK and the C++ media bindings do not exhaust it.
+core. On a machine with 8 GB of memory, set `CARGO_BUILD_JOBS=2` so the UI
+crate and the C++ media bindings do not exhaust it.
 
 Development builds omit debug symbols for dependencies; the app keeps line
 tables. They optimize DeepFilterNet's crates and turn off tract-core's debug
@@ -257,8 +255,6 @@ dependency in Cargo.toml:
   rather than the mask, and pictures drawn from their own premultiplied
   bytes when they say so. Its `PATCHES.md` lists each, the ones left, and
   how to carry them to a new pin.
-- `matrix-rtc-livekit`: Element's matrix-rust-rtc at `5831af8`, with native
-  audio tracks and cancellable joins.
 - `webrtc-sys`: webrtc-sys 0.3.35 with a Windows link fix, capture leveling,
   remote track volume and camera capture from pooled buffers.
 - `davey`: davey 0.1.4, keeping its key packages when a Go Live stream's group
@@ -289,11 +285,40 @@ this section describes. The Slint crates keep their `.rs` files at the crate
 root, with no `src/`, both in `vendor/` and in Cargo's registry.
 
 Crates that aren't vendored are in
-`~/.cargo/registry/src/index.crates.io-*/NAME-VERSION/`. The Matrix SDK is a git
-dependency; its checkout is `~/.cargo/git/checkouts/matrix-rust-sdk-*/c6ad52e/`,
-the short form of the revision pinned in Cargo.toml. libDF's is
-`~/.cargo/git/checkouts/deepfilternet-*/d375b2d/libDF/`. libwebrtc's headers are in
+`~/.cargo/registry/src/index.crates.io-*/NAME-VERSION/`. libDF is a git
+dependency; its checkout is
+`~/.cargo/git/checkouts/deepfilternet-*/d375b2d/libDF/`, the short form of
+the revision pinned in Cargo.toml. libwebrtc's headers are in
 `$LK_CUSTOM_WEBRTC/include` inside the development shell.
+
+### BoringSSL
+
+Every HTTPS request and WebSocket goes through `crates/yapfast-http`, on wreq
+0.16 and wreq-util 0.2 (Apache-2.0), whose TLS is BoringSSL: btls-sys builds
+the copy it carries (MIT for the bindings, Apache-2.0 and the OpenSSL
+licences for BoringSSL) with CMake 3.22 or newer and the C and C++ compiler
+in `CC` and `CXX`, after applying its patches with `git`, and generates its
+bindings with bindgen, which finds libclang as for thorvg-sys below. On
+x86-64 Windows CMake assembles BoringSSL's assembly with NASM. Perl and Go
+aren't needed. See [how Yapfast presents
+itself](discord/README.md#how-yapfast-presents-itself) for what it's for.
+
+libwebrtc carries a BoringSSL of its own. LiveKit's archive renames most of
+its symbols `LK_*`, but about 480 keep BoringSSL's names, such as
+`OPENSSL_sk_new`, `BIO_meth_get_read`, `CRYPTO_gcm128_init_ctx` and
+`SSL_CTX_add1_credential`; `nm $LK_CUSTOM_WEBRTC/lib/libwebrtc.a | grep ' T
+OPENSSL_sk_new'` shows one. On Linux, yapfast-http turns on wreq's
+`prefix-symbols`, and btls-sys renames every global symbol of its BoringSSL
+to `btls_sys_*` with `nm` and `objcopy`, which binutils puts on `PATH` in
+every shell, so the two never meet. aws-lc, rustls's provider, prefixes its
+own. btls-sys doesn't rename symbols for Windows targets, and would still
+point the bindings at prefixed names there, so the feature stays off: the
+Windows build links an unprefixed BoringSSL beside `webrtc.lib`. If that
+`webrtc.lib` keeps the same unprefixed names as the Linux archive, the link
+fails with duplicate symbols, or, where only one copy is pulled in, each side
+may call the other's copy of a function; check `llvm-nm webrtc.lib` for
+them, and that a Windows build links and its calls connect, before a
+release.
 
 ### Media libraries
 
@@ -350,21 +375,7 @@ build; and the desktop smoke test, which runs `target/<profile>/yapfast`,
 the desktop build, from that build. These build the default features, the
 release's: Discord on the desktop (see [Networks](#networks)).
 
-`scripts/check --matrix` adds the builds with Matrix, after those and one at
-a time, as each compile of the UI crate takes several GiB of memory: Clippy
-and the tests with Matrix beside Discord, Clippy for the Matrix-only build,
-then the headless build's Clippy and smoke test in
-`target/check-combinations/`, so the headless binary doesn't replace the
-desktop one. Run it before a release and after a change to code that Matrix
-shares, such as `#[cfg(feature = "matrix")]` branches in `yapfast-core` and
-the app. The Matrix-only step also selects `crates/feature-union`, a crate
-without code that turns on the features the full build turns on in the
-crates below Slint. Slint and the UI crate then resolve as in the Clippy step
-with Matrix, and the Matrix-only step reuses its check of the UI crate,
-taking seconds instead of several minutes. When it compiles `yapfast-ui`
-again, a dependency has drifted and `feature-union` needs its features. The
-default steps leave `feature-union` out, so they resolve as a plain
-`cargo build`. Each step prints `=== step` and `rc=N` when it ends,
+Each step prints `=== step` and `rc=N` when it ends,
 with Rust's errors when it fails, and keeps its full log under `target/check/`.
 The script runs every step and exits non-zero if any failed.
 
@@ -444,27 +455,22 @@ before.
 
 ## Networks
 
-Matrix and Discord are Cargo features, `matrix` and `discord`. The default
-build is the release's, Discord on the desktop; a build can add Matrix, or
-carry Matrix alone:
+Discord is a Cargo feature, `discord`, and the only network: the fork carries
+no Matrix. The default build is the release's, Discord on the desktop:
 
 ```sh
-cargo build --release                                                  # Discord only
-cargo build --release --features matrix                                # Discord and Matrix
-cargo build --release --no-default-features --features desktop,matrix  # Matrix only
+cargo build --release
 ```
 
-Releases are the Discord-only build: `nix/package.nix` (`buildFeatures`) and
-`scripts/package-linux.py` (`FEATURES`) name its features, `desktop,discord`,
-rather than rely on the defaults. The Matrix tools, such as `--voice-demo`,
-`--call-experiment`, the session commands and `scripts/test-voice`, need
-`--features matrix`. Measure with the release's features.
+Releases name its features, `desktop,discord`, rather than rely on the
+defaults: `nix/package.nix` (`buildFeatures`) and `scripts/package-linux.py`
+(`FEATURES`). Measure with the release's features.
 
-A Discord-only build signs in by linking Discord by QR code, and connects with
-the account linked on the device from then on. Voice calls
-still need LiveKit's libwebrtc, which provides the audio processing and the
-device list for both networks. The `--no-default-features` build without either
-network only opens `--preview`.
+The app signs in by linking Discord by QR code, and connects with the account
+linked on the device from then on; signing out unlinks it. Voice calls still
+need LiveKit's libwebrtc, which provides the audio processing and the device
+list. The `--no-default-features` build without Discord only opens
+`--preview`.
 
 `YAPFAST_DISCORD_TEST_SERVER=http://127.0.0.1:18400` points Discord at
 `testing/fake_discord.ts` (`bun testing/fake_discord.ts --port 18400`). It uses
@@ -514,9 +520,9 @@ The Linux cross-build and portable ZIP route is documented in the
 archive and checksum-pinned Skia source through the Windows Nix shell.
 `scripts/build-windows` prepares and caches a static-runtime Skia build before
 compiling Yapfast. The executable uses static CRT linkage to match LiveKit.
-`scripts/build-windows [discord|full] [options]` builds the Discord-only release,
-the default, or the full preview with Matrix, and passes the options to
-`scripts/package-windows.py`, such as `--no-installer`.
+`scripts/build-windows [discord] [options]` builds the release, Discord only,
+and passes the options to `scripts/package-windows.py`, such as
+`--no-installer`.
 `scripts/package-windows.py`, which `scripts/build-windows` runs, makes the
 flavour's portable ZIP and compiles the installer, `packaging/windows/yapfast.iss`, with
 Inno Setup 7.1.0 under Wine. The first run downloads Inno Setup's installer,
@@ -544,10 +550,12 @@ building in the Nix sandbox.
 
 The supported and packaged build route remains the Linux MSVC cross-build.
 A native Windows build is for development only: it names this machine's folders
-and must not be shipped. It needs Rust 1.97.1, Visual Studio C++ tools and the
+and must not be shipped. It needs Rust 1.98.1, Visual Studio C++ tools and the
 Windows 10/11 SDK, LLVM with `clang-cl`, `llvm-rc` and `libclang` on `PATH`
-(the SDK's `rc.exe` can replace `llvm-rc`), and NASM on `PATH`. bindgen, which
-`thorvg-sys` runs, finds `libclang` only through `LIBCLANG_PATH`, `llvm-config
+(the SDK's `rc.exe` can replace `llvm-rc`), and NASM, CMake 3.22 or newer and
+Git on `PATH`, the last two for [BoringSSL](#boringssl);
+`scripts/windows/bootstrap.ps1` fetches each pinned. bindgen, which
+`thorvg-sys` and btls-sys run, finds `libclang` only through `LIBCLANG_PATH`, `llvm-config
 --prefix` or `LIBRARY_PATH`, never `PATH`, so set `LIBCLANG_PATH` to LLVM's
 `bin` where `llvm-config` is not on `PATH`. `skia-bindings` reads the LLVM
 Skia's build needs from `LLVM_HOME`, then `C:\Program Files\LLVM`, `C:\LLVM`
@@ -616,17 +624,3 @@ counters when the driver exposes them through `/proc/PID/fdinfo`.
 An unavailable GPU metric is reported explicitly. Record hardware, account and
 room counts, renderer, build mode, warm-up, window size and activity alongside
 the output.
-
-## Local backend
-
-Synapse and the authorization service communicate over an internal TLS listener
-using a throwaway self-signed certificate. LiveKit and authorization share a
-network namespace, and use the same signaling port inside and outside Docker.
-Authorization uses the standalone `/get_token` mode from lk-jwt-service 0.7.0.
-Yapfast's native experiment sets the local authorization fallback explicitly,
-because this stack does not advertise a production RTC discovery endpoint.
-See [sessions](sessions.md) for credential storage and headless sign-in.
-
-The service only allows the local `synapse` homeserver to create SFU rooms. This
-does not establish a production friend-group or room-membership access policy.
-That policy remains part of the encrypted calling experiment.

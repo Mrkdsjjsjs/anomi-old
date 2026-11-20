@@ -1,7 +1,6 @@
 // A fake Discord for tests and memory measurements: the gateway and the parts
-// of the HTTP API Yapfast uses, with one deterministic server, "Server", that
-// mirrors the Matrix fixture (Alice reads #general, Bob posts, three people sit
-// in the Lounge voice channel). Run `bun testing/fake_discord.ts --port 18400`,
+// of the HTTP API Yapfast uses, with one deterministic server, "Server" (Alice
+// reads #general, Bob posts, three people sit in the Lounge voice channel). Run `bun testing/fake_discord.ts --port 18400`,
 // then start Yapfast with YAPFAST_DISCORD_TEST_SERVER=http://127.0.0.1:18400.
 // `--env PATH` puts an environment's content in place of all of the below's,
 // for demos, promo recordings and screenshots: the account, people with
@@ -1090,7 +1089,7 @@ function chunk(type: string, data: Uint8Array): Uint8Array {
   return out;
 }
 
-/** The Matrix fixture's sunset.png gradient, drawn at any size. */
+/** A sunset gradient, drawn at any size. */
 function sunset(width: number, height: number): Uint8Array {
   return png(width, height, (x, y) => {
     const sx = Math.floor((x * 800) / width);
@@ -1730,7 +1729,7 @@ function wirePrivate(id: string, channel: Private, users: "ids" | "objects") {
   };
 }
 
-// The Matrix fixture's conversation, then its extra history.
+// The sample conversation, then its extra history.
 const sunsetFile = addFile({
   id: snowflake(HISTORY_START + 60_000, 1),
   channel: GENERAL,
@@ -4277,7 +4276,9 @@ function sendCameras(ws: Socket, wants: any) {
  *  audio SSRC is `ssrc`, or null: the Video payload of
  *  docs.discord.food/topics/voice-connections, with the SSRCs Ready gave,
  *  one stream of only the documented fields, a fixed largest frame or the
- *  source's, a frame rate and a cap in bit/s. A fixed frame is any size, as
+ *  source's, a frame rate and a cap in bit/s, any whole number: the docs'
+ *  example sends 9 Mbit/s and names no most, and Anomi's unlock announces
+ *  up to 50 (`announcedBitrate`). A fixed frame is any size, as
  *  Yapfast names the one it sends: 1440p's is 2560 by 1440, or 2560 by 1070
  *  from an ultrawide screen. /_control/video reports it as `announced`, in
  *  op 12's own shape. Sent again when the stream's quality changes, in the

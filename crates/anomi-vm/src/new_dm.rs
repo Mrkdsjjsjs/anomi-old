@@ -8,10 +8,10 @@ use crate::kind::Avatar;
 /// One person the search found.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Person {
-    /// Their Discord or Matrix user id, which `Intent::Start` carries.
+    /// Their Discord user id, which `Intent::Start` carries.
     pub id: String,
     pub name: String,
-    /// Who they are to this account ("Discord friend"), or their Matrix id.
+    /// Who they are to this account ("Discord friend").
     pub detail: String,
     pub avatar: Avatar,
     /// From Discord, which the row marks. The app sets it only while marks
@@ -25,9 +25,7 @@ pub struct Person {
 pub struct NewDm {
     /// What the field holds; the app clears it as the dialog opens.
     pub query: String,
-    /// Matrix ids can be typed too (the placeholder says so).
-    pub matrix: bool,
-    /// Who it found, Discord's first.
+    /// Who it found.
     pub people: Vec<Person>,
     /// A conversation is starting: the rows take no press.
     pub starting: bool,

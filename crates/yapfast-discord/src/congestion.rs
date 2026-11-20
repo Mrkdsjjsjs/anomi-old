@@ -11,9 +11,11 @@
 //! calm picture can't take it to a rate the uplink never carried, and near
 //! the rate it last backed off from it rises slowly. The cap is Discord's
 //! for the stream's height, or the bitrate limit the person chose when
-//! that's lower (`stream_connection::cap`), or the server's estimate (REMB)
-//! when that's lower still. The cap only ever bounds the target: it is
-//! never a floor the target is held at.
+//! that's lower, or, with the unlock, up to 50 Mbit/s
+//! (`stream_connection::cap`), or the server's estimate (REMB) when that's
+//! lower still. The cap only ever bounds the target: it is never a floor
+//! the target is held at. Each rise is a share of the target, so it climbs
+//! to a higher cap in more steps, never at once.
 
 use std::{
     collections::VecDeque,
@@ -600,6 +602,57 @@ mod tests {
         assert_eq!(uplink.target(), 5_000_000 * 108 / 100);
         // A limit starts the stream below it.
         assert_eq!(Controller::new(2_000_000).target(), 2_000_000);
+    }
+
+    /// With the unlock's 50 Mbit/s cap the target climbs as it does to 9:
+    /// 8% a report at most, never past the cap or what was sent, never at
+    /// once, about 39 reports from the start; and it still backs off on
+    /// loss and on a queue there.
+    #[test]
+    fn climbs_to_an_unlocked_cap_in_steps_and_still_backs_off() {
+        const UNLOCKED: u64 = 50_000_000;
+        let mut uplink = Uplink::new(UNLOCKED);
+        assert_eq!(uplink.target(), 2_500_000, "starts where it always does");
+        let mut reports = 0;
+        while uplink.target() < UNLOCKED {
+            let before = uplink.target();
+            assert_eq!(uplink.busy(1, Some(ms(40)), 0), [Some(Reason::Ramp)]);
+            let after = uplink.target();
+            assert!(after <= before + before * RAMP / 100, "{before} to {after}");
+            assert!(after <= UNLOCKED);
+            reports += 1;
+            assert!(reports < 60, "stuck at {after}");
+        }
+        assert!((38..=41).contains(&reports), "{reports} reports");
+        assert_eq!(uplink.busy(3, Some(ms(40)), 0), [None, None, None]);
+        assert_eq!(uplink.target(), UNLOCKED, "never past it");
+        // A calm picture at 50: the target can't rise past what's sent.
+        let mut calm = Uplink::new(UNLOCKED);
+        // About 1.5 times the 3 Mbit/s it sends, far under the cap.
+        calm.seconds(10, 3_000_000, Some(ms(40)), 0);
+        assert!(calm.target() < 4_700_000, "{}", calm.target());
+        // Loss at 50 Mbit/s backs off below what the server received.
+        uplink.busy(1, None, 40);
+        assert!(
+            near(uplink.target(), UNLOCKED * 85 / 100),
+            "{}",
+            uplink.target()
+        );
+        // A queue: two slow reports in a row.
+        let mut queued = Uplink::new(UNLOCKED);
+        queued.busy(45, Some(ms(40)), 0);
+        assert_eq!(queued.target(), UNLOCKED);
+        assert_eq!(
+            queued.busy(2, Some(ms(300)), 0),
+            [None, Some(Reason::Queuing)]
+        );
+        assert!(queued.target() < UNLOCKED * 86 / 100);
+        // Its cap lowered to Discord's while live, as the unlock turned
+        // off: at once; raised again, it climbs back in steps.
+        assert_eq!(queued.controller.set_cap(CAP), Some(Reason::Cap));
+        assert_eq!(queued.target(), CAP);
+        assert_eq!(queued.controller.set_cap(UNLOCKED), None, "no jump");
+        assert_eq!(queued.target(), CAP);
     }
 
     #[test]

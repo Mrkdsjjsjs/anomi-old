@@ -33,6 +33,7 @@ use std::{
 
 use sha2::{Digest, Sha256};
 use yapfast_core::runtime::BackgroundRuntime;
+use yapfast_http::wreq::Client;
 
 use super::{Asset, Release, Source, signature};
 
@@ -243,14 +244,13 @@ impl Progress {
 
 /// Reads a small file of the release's, the sums or their signature, whole;
 /// one over `limit` bytes isn't the release's.
-async fn fetch_small(client: &reqwest::Client, url: &str, limit: u64) -> Result<String, String> {
+async fn fetch_small(client: &Client, url: &str, limit: u64) -> Result<String, String> {
     const TOO_LARGE: &str = "The release's sums are too large to be right.";
-    let mut response = client
-        .get(url)
+    let mut response = super::get(client, url)
         .send()
         .await
         .and_then(|response| response.error_for_status())
-        .map_err(|error| error.without_url().to_string())?;
+        .map_err(|error| error.without_uri().to_string())?;
     if response
         .content_length()
         .is_some_and(|length| length > limit)
@@ -258,10 +258,9 @@ async fn fetch_small(client: &reqwest::Client, url: &str, limit: u64) -> Result<
         return Err(yapfast_lang::text(TOO_LARGE).into());
     }
     let mut bytes = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
+    while let Some(chunk) = yapfast_http::chunk(&mut response)
         .await
-        .map_err(|error| error.without_url().to_string())?
+        .map_err(|error| error.without_uri().to_string())?
     {
         if (bytes.len() + chunk.len()) as u64 > limit {
             return Err(yapfast_lang::text(TOO_LARGE).into());
@@ -275,18 +274,17 @@ async fn fetch_small(client: &reqwest::Client, url: &str, limit: u64) -> Result<
 /// Downloads `url` to `to` a chunk at a time, hashing as it goes; returns the
 /// SHA-256 as lower-case hex.
 async fn download(
-    client: &reqwest::Client,
+    client: &Client,
     url: &str,
     to: &Path,
     expected_size: u64,
     progress: &Progress,
 ) -> Result<String, String> {
-    let mut response = client
-        .get(url)
+    let mut response = super::get(client, url)
         .send()
         .await
         .and_then(|response| response.error_for_status())
-        .map_err(|error| error.without_url().to_string())?;
+        .map_err(|error| error.without_uri().to_string())?;
     progress.total.store(
         response.content_length().unwrap_or(expected_size),
         Ordering::Relaxed,
@@ -297,10 +295,9 @@ async fn download(
     }
     let mut file = std::fs::File::create(to).map_err(|error| error.to_string())?;
     let mut hasher = Sha256::new();
-    while let Some(chunk) = response
-        .chunk()
+    while let Some(chunk) = yapfast_http::chunk(&mut response)
         .await
-        .map_err(|error| error.without_url().to_string())?
+        .map_err(|error| error.without_uri().to_string())?
     {
         hasher.update(&chunk);
         file.write_all(&chunk).map_err(|error| error.to_string())?;
@@ -370,7 +367,7 @@ pub enum Prepared {
 /// failure the downloaded file is removed.
 pub async fn prepare(
     runtime: &BackgroundRuntime,
-    client: &reqwest::Client,
+    client: &Client,
     release: &Release,
     target: &Target,
     progress: Arc<Progress>,
@@ -385,7 +382,7 @@ pub async fn prepare(
 
 async fn prepare_in(
     runtime: &BackgroundRuntime,
-    client: &reqwest::Client,
+    client: &Client,
     release: &Release,
     target: &Target,
     part: &Path,
@@ -719,9 +716,8 @@ mod tests {
     /// take turns.
     static INSTALLER_FOLDER: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    fn client() -> reqwest::Client {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-        reqwest::Client::new()
+    fn client() -> Client {
+        yapfast_http::builder().build().unwrap()
     }
 
     fn sha(bytes: &[u8]) -> String {

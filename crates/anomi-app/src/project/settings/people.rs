@@ -84,7 +84,6 @@ pub(super) fn discord(
     );
     let built = discord::Discord {
         linked: linked(state),
-        matrix_build: cfg!(feature = "matrix"),
         show_hidden_channels: layout.show_hidden_channels,
         sync_reads: layout.sync_discord_reads.unwrap_or(true),
         show_idle: layout.show_idle.unwrap_or(true),

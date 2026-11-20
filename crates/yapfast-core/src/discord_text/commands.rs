@@ -26,6 +26,13 @@ pub fn command(
     if matches!(command, Command::Open(_) | Command::CloseRoom) {
         channels.close();
     }
+    // The Reconnect button: connect now, where the connection was lost.
+    if matches!(command, Command::RetrySync) {
+        if let Ok(discord) = discord {
+            discord.reconnect();
+        }
+        return;
+    }
     if let Command::Aside(room) = command {
         aside(room, discord, channels, done, events);
         return;

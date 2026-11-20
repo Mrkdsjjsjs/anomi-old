@@ -446,13 +446,11 @@ pub fn source() -> Source {
     )
 }
 
-/// The client every request here uses: the program's name and version, no
-/// cookies, HTTPS only, and the same process-wide TLS provider the other
-/// connections install. A download that stops for a minute is given up.
-pub(crate) fn client() -> Result<reqwest::Client, String> {
-    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-    reqwest::Client::builder()
-        .user_agent(concat!("Yapfast/", env!("CARGO_PKG_VERSION")))
+/// The client every request here uses: the browser every connection of
+/// Yapfast's presents as (yapfast_http), no cookies, HTTPS only. A download
+/// that stops for a minute is given up.
+pub(crate) fn client() -> Result<yapfast_http::wreq::Client, String> {
+    yapfast_http::builder()
         .https_only(true)
         .connect_timeout(std::time::Duration::from_secs(20))
         .read_timeout(std::time::Duration::from_secs(60))
@@ -460,17 +458,29 @@ pub(crate) fn client() -> Result<reqwest::Client, String> {
         .map_err(|error| error.to_string())
 }
 
-/// Asks GitHub for the releases: one request, with no account or identifier
-/// beyond the program's name and version.
+/// A GET of `url` as the browser opens an address, which is all that asks
+/// GitHub here: GitHub's API answers it with the same JSON.
+pub(crate) fn get(
+    client: &yapfast_http::wreq::Client,
+    url: &str,
+) -> yapfast_http::wreq::RequestBuilder {
+    yapfast_http::request(
+        client,
+        yapfast_http::Kind::Navigate,
+        yapfast_http::wreq::Method::GET,
+        url,
+    )
+}
+
+/// Asks GitHub for the releases: one request, with no account and nothing
+/// that tells this browser from another of its version.
 pub async fn check() -> Result<Vec<Release>, String> {
-    let response = client()?
-        .get(RELEASES)
-        .header("Accept", "application/vnd.github+json")
+    let response = get(&client()?, RELEASES)
         .timeout(std::time::Duration::from_secs(20))
         .send()
         .await
         .and_then(|response| response.error_for_status())
-        .map_err(|error| error.without_url().to_string())?;
+        .map_err(|error| error.without_uri().to_string())?;
     let body = response.bytes().await.map_err(|error| error.to_string())?;
     parse_releases(&body).map_err(|error| error.to_string())
 }

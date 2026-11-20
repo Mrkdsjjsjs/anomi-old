@@ -18,11 +18,18 @@
 //! which the Slint menu didn't offer) and the menu stays open; "Change
 //! Windows" opens the dialog to pick what to switch to; "Stop Streaming"
 //! ends the stream.
+//!
+//! With Settings' "Unlocked bitrate" the limit's steps go past 9 Mbit/s,
+//! and "Custom value…" opens the limit typed by hand (`entry`) in place of
+//! the dialog or the menu.
 
+mod entry;
 mod menus;
 mod picks;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_bitrate;
 
 use iced::Task;
 use yapfast_core::stream_worker::{self, Shareable, Source};
@@ -37,6 +44,7 @@ use crate::app::App;
 use crate::layout::{ENCODE_AUTO, ENCODE_SOFTWARE};
 use crate::message::{Message, Once};
 
+pub(crate) use entry::cancel as cancel_entry;
 pub use menus::own_menu;
 pub use picks::handle;
 
@@ -58,6 +66,9 @@ pub struct Shown {
     /// The resolution and frame rate the person set before a preset took
     /// their place: "Custom" brings them back.
     custom: Option<(Resolution, u32)>,
+    /// The share layer opened for the limit typed by hand alone, from the
+    /// menu of one's own stream's tile: leaving it closes the layer.
+    entry_alone: bool,
 }
 
 impl Shown {
@@ -160,9 +171,11 @@ pub fn listed(app: &mut App, Listed(asked, listed): Listed) -> Task<Message> {
 }
 
 /// The dialog's picks as the call and the layout have them: the stream's
-/// quality and sound, its preview, where it encodes. While live nothing is
-/// picked, so Switch waits for a pick and a change of sound or quality
-/// switches nothing (`open-share-menu`).
+/// quality and sound, its preview, where it encodes, and the bitrate's
+/// unlock. While live nothing is picked, so Switch waits for a pick and a
+/// change of sound or quality switches nothing (`open-share-menu`). The
+/// limit is the one kept, past 9 Mbit/s too, which the menus show as 9
+/// without the unlock and which goes back to the core as it was.
 pub(super) fn picks(app: &mut App) -> Share {
     let (encoders, encoder) = encoders(app);
     let voice = &app.core.state.voice;
@@ -173,6 +186,7 @@ pub(super) fn picks(app: &mut App) -> Share {
         fps: voice.quality.fps,
         high_quality: voice.quality.high_quality,
         max_kbps: voice.quality.max_kbps,
+        unlocked: app.layout.stream_bitrate_unlocked,
         sound: match voice.stream_audio {
             StreamAudio::Off => Sound::None,
             _ => Sound::All,
@@ -215,12 +229,26 @@ pub(crate) fn menu_resolution(resolution: voice::Resolution) -> Resolution {
 }
 
 /// The dialog closed: a listing still waited for is forgotten, and its
-/// gear's menu goes with it.
+/// gear's menu goes with it. The limit typed by hand stays drawn while the
+/// layer plays its way out, and goes as the layer opens again.
 pub fn closed(app: &mut App) -> Task<Message> {
     app.shown.voice.share.waiting = None;
     app.shown.voice.share.glance = None;
+    app.shown.voice.share.entry_alone = false;
     menus::dialog_closed(app);
     Task::none()
+}
+
+/// Settings' "Unlocked bitrate" changed: the dialog or the menu showing
+/// offers the steps past 9 Mbit/s, or no more, and says the limit in force.
+pub(crate) fn unlocked(app: &mut App, on: bool) {
+    let share = &mut app.vm.voice.share;
+    if share.unlocked == on {
+        return;
+    }
+    share.unlocked = on;
+    rebuild(app);
+    menus::refresh(app);
 }
 
 /// After each update: the menus of a stream follow it. They close as it

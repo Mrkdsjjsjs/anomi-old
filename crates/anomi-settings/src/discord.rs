@@ -1,6 +1,6 @@
 //! The Discord settings page: four switches for how the account's channels
-//! and messages show, the list of those it blocked, and, with a Matrix
-//! build, Unlink. Without an account it offers to link one. The Slint side:
+//! and messages show, and the list of those it blocked; signing out unlinks
+//! the account. Without an account it offers to link one. The Slint side:
 //! `DiscordSettings` and `DiscordLinkSettings` (`ui/settings.slint:2195`,
 //! `:2110`).
 //!
@@ -46,25 +46,7 @@ pub fn view(page: &Discord, motion: Motion) -> impl View<Intent> + '_ {
     if !page.linked {
         return unlinked(motion);
     }
-    let mut parts: Vec<Element<'_, Intent>> = Vec::new();
-    if page.matrix_build {
-        parts.push(
-            row![
-                typography::label(tr!(
-                    "Unlinking signs Yapfast out of Discord on this computer."
-                ))
-                .width(Length::Fill)
-                .align_y(alignment::Vertical::Center),
-                action_button(tr!("Unlink Discord"), Kind::Danger, motion)
-                    .leading(Icon::LogOut)
-                    .on_press(Intent::Unlink),
-            ]
-            .spacing(HEADER)
-            .align_y(alignment::Vertical::Center)
-            .boxed(),
-        );
-    }
-    parts.extend([
+    let mut parts: Vec<Element<'_, Intent>> = vec![
         switch(tr!("Show channels you can't access"), page.show_hidden_channels, motion)
             .description(tr!("They appear locked. Server admins hid them on purpose."))
             .on_toggle(Intent::ShowHiddenChannels)
@@ -87,7 +69,7 @@ pub fn view(page: &Discord, motion: Motion) -> impl View<Intent> + '_ {
             ))
             .on_toggle(Intent::HideBlocked)
             .view(),
-    ]);
+    ];
     // As Discord's Ignore & Block lists them, only while there are any.
     if !page.blocked.is_empty() {
         parts.push(blocked(page, motion));

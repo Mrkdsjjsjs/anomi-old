@@ -2,7 +2,7 @@
 name = "anomi-people"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 description = "People in Anomi's iced interface: friends, Active Now, the member list, profiles, status and the profile editor"

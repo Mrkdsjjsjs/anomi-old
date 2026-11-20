@@ -553,6 +553,7 @@ fn take(shared: &Shared, progress: &Progress, control: Control) {
         | Control::Audio(_)
         | Control::Quality { .. }
         | Control::EncodeOn(_)
+        | Control::BitrateUnlocked(_)
         | Control::Cpus(_)
         | Control::Hear(_)
         | Control::Cleaning(_)

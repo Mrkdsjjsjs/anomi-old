@@ -66,12 +66,13 @@ fn unblock_names_the_person() {
 }
 
 #[test]
-fn unlink_is_a_matrix_builds() {
+fn signing_out_unlinks_so_the_page_has_no_unlink() {
     assert!(simulate(&sample::discord()).find("Unlink Discord").is_err());
-    let page = sample::discord_blocked();
-    let mut ui = simulate(&page);
-    ui.click("Unlink Discord").expect("a Matrix build has it");
-    assert_eq!(asked(ui), [Intent::Unlink]);
+    assert!(
+        simulate(&sample::discord_blocked())
+            .find("Unlink Discord")
+            .is_err()
+    );
 }
 
 #[test]

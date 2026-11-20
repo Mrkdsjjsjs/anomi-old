@@ -2,7 +2,7 @@
 name = "anomi-desktop"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 publish = false
 license = "GPL-3.0-or-later"
 description = "What both of Anomi's clients ask of the desktop beyond their toolkit: the tray icon, one instance a folder, the window's icon, giving memory back, notifications, the browser, the clipboard, dropped files, the system's links and keybinds in any app; no window toolkit"

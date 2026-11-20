@@ -70,7 +70,6 @@ pub(super) fn command(
                 .collect();
             let _ = events.send(Event::People {
                 query: query.clone(),
-                discord: true,
                 people,
             });
         }

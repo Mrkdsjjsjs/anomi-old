@@ -63,12 +63,7 @@ pub fn view(new_dm: &NewDm, motion: Motion) -> impl View<Intent> + '_ {
     ]
     .align_y(Alignment::Center)
     .height(TITLE);
-    let placeholder = if new_dm.matrix {
-        tr!("Find a friend, or type a Matrix id")
-    } else {
-        tr!("Find a friend")
-    };
-    let search = field(placeholder, &new_dm.query)
+    let search = field(tr!("Find a friend"), &new_dm.query)
         .id(query_id())
         .on_input(Intent::Query)
         .text_size(typography::size::BODY)
@@ -177,7 +172,6 @@ pub fn shots() -> Vec<crate::shots::Shot> {
     vec![
         shot("new_dm", || over(new_dm::friends())),
         shot("new_dm_found", || over(new_dm::found())),
-        shot("new_dm_matrix", || over(new_dm::matrix())),
         shot("new_dm_hint", || over(new_dm::hint())),
         shot("new_dm_nobody", || over(new_dm::nobody())),
         shot("new_dm_starting", || over(new_dm::starting())),

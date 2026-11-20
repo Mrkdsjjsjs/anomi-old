@@ -1,4 +1,4 @@
-//! Linking Discord: the way in of a build without Matrix, and
+//! Linking Discord: the way in, and
 //! `DiscordLinkPanel` (`ui/discord.slint:29`): the risk to the account
 //! first, then the code to scan with the phone app, then who scanned it
 //! while they confirm. A token pasted instead links without the phone.

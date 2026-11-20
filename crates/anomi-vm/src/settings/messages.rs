@@ -76,9 +76,6 @@ pub struct Messages {
     pub share_typing: bool,
     pub reply_ping: bool,
     pub strip_tracking: bool,
-    /// The networks in use, which the typing switch's description names.
-    pub matrix: bool,
-    pub discord: bool,
 }
 
 impl Messages {

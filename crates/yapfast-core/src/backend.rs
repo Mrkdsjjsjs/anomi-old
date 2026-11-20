@@ -234,28 +234,3 @@ mod quitting {
         assert!(started.elapsed() < Duration::from_millis(50));
     }
 }
-
-// Without Matrix, restoring depends on this machine's saved Discord login.
-#[cfg(all(test, feature = "matrix"))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn failed_restore_closes_the_event_stream_and_rejects_commands() {
-        let runtime = Arc::new(BackgroundRuntime::new().unwrap());
-        let directory = tempfile::tempdir().unwrap();
-        let (backend, mut events) =
-            Backend::start(runtime.clone(), directory.path().into(), Start::Restore);
-        runtime.block_on(async {
-            let event = tokio::time::timeout(std::time::Duration::from_secs(2), events.recv())
-                .await
-                .unwrap();
-            assert!(matches!(event, Some(Event::Error(_))));
-            assert!(events.recv().await.is_none());
-        });
-        assert!(matches!(
-            backend.send(Command::Logout),
-            Err(Command::Logout)
-        ));
-    }
-}

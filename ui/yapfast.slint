@@ -53,7 +53,7 @@ import { ActivityMenu, MemberRow, MemberActivityRow, ProfileData, BadgeTipCard, 
 import { RequestRow, FriendRow, FriendsScreen, HeaderTab, RequestsScreen, AddFriendDialog } from "friends.slint";
 import { ContactRow, PlaceRow, ReactionPill, ReactorRow, StatusDialog, NewDmDialog, ForwardDialog, QuickSwitcher, ReactionsDialog, StatusMenu, PersonPrompt, PersonDialog, LeavingDialog, PollAnswerDraft, PollDialog } from "dialogs.slint";
 import { InvitePrompt, InviteDialog, JoinPrompt, JoinDialog, EventPrompt, EventDialog, GiftPrompt, GiftDialog, OAuthPrompt, OAuthDialog, ChannelPrompt, ChannelDialog, ProfileEditorPrompt, ProfileEditorDialog } from "server.slint";
-import { SignInScreen, VerifyBanner } from "sign-in.slint";
+import { SignInScreen } from "sign-in.slint";
 import { BuildInfo } from "yapfast/build-info.slint";
 import { BoostPicture, BoostPrompt, EngagementPrompt, ServerProfilePrompt, ServerSettingsPrompt, ServerSettingsScreen } from "server_settings.slint";
 import { PermissionRow, RoleMemberRow, RoleRow, RoleSwatch, RolesPrompt } from "roles.slint";
@@ -128,9 +128,7 @@ export component YapfastWindow inherits Window {
     in property <bool> workspace;
     in property <bool> preview;
     in property <bool> busy;
-    in property <bool> trusted;
     in property <bool> online;
-    in property <bool> restore-available;
     in property <bool> dms-selected;
     in property <bool> dms-unread;
     in property <string> dms-badge;
@@ -436,9 +434,8 @@ export component YapfastWindow inherits Window {
     callback member-list-toggled(bool);
     /// A Discord account is linked, so its settings show.
     in property <bool> discord-linked;
-    // Which networks this build carries.
+    // Whether this build carries Discord.
     in property <bool> discord-build;
-    in property <bool> matrix-build: true;
     // Linking Discord by QR code; see DiscordLinkPanel.
     in property <int> link-phase;
     in property <image> link-code;
@@ -448,7 +445,6 @@ export component YapfastWindow inherits Window {
     callback link-discord-token(string);
     callback open-discord-captcha;
     callback cancel-discord-link;
-    callback unlink-discord;
     in-out property <bool> show-hidden-channels;
     callback show-hidden-channels-toggled(bool);
     /// A link in a message was clicked.
@@ -914,10 +910,6 @@ export component YapfastWindow inherits Window {
     in-out property <string> switcher-query;
     /// The platform's color emoji font, so reactions do not fall back to outline glyphs.
     in property <string> emoji-font;
-    in-out property <string> homeserver: "https://matrix.org";
-    in-out property <string> username;
-    in-out property <string> password;
-    in-out property <string> recovery;
     in-out property <string> draft;
     in-out property <string> filter;
     in property <bool> voice-visible;
@@ -1484,12 +1476,8 @@ export component YapfastWindow inherits Window {
     /// Why the level can't be shown, if it can't.
     in-out property <string> meter-note;
 
-    callback login;
-    callback restore;
     callback explore-preview;
     callback logout;
-    callback recover;
-    callback refresh-trust;
     callback retry-sync;
     callback navigate-dms;
     callback navigate-server(string);
@@ -1781,10 +1769,6 @@ export component YapfastWindow inherits Window {
         if root.menu-aside { root.aside-focus-tick += 1; } else { root.focus-composer(); }
     }
     public function place-composer-caret(offset: int) { composer.place-caret(offset); }
-    // The Matrix sign-in, which only a build with Matrix has, focuses its first
-    // field each time this counts up.
-    property <int> sign-in-focus;
-    public function focus-sign-in() { root.sign-in-focus += 1; }
     property <int> search-focus-tick;
     /// Focuses the conversation's search in the header, selecting what it
     /// holds; whether there is one to focus: not where the conversation has
@@ -2776,13 +2760,9 @@ export component YapfastWindow inherits Window {
     SignInScreen {
         y: root.title-height; height: root.height - root.title-height;
         visible: !root.workspace;
-        busy: root.busy; notice: root.notice; restore-available: root.restore-available; matrix-build: root.matrix-build;
+        busy: root.busy; notice: root.notice;
         link-phase: root.link-phase; link-code: root.link-code; link-name: root.link-name; link-note: root.link-note;
-        sign-in-focus: root.sign-in-focus;
         graphics-notice <=> root.graphics-notice;
-        homeserver <=> root.homeserver; username <=> root.username; password <=> root.password;
-        login => { root.login(); }
-        restore => { root.restore(); }
         explore-preview => { root.explore-preview(); }
         link-discord => { root.link-discord(); }
         link-discord-token(token) => { root.link-discord-token(token); }
@@ -2803,7 +2783,6 @@ export component YapfastWindow inherits Window {
                     // Server rail.
                     ServerRail {
                         dms-selected: root.dms-selected; dms-unread: root.dms-unread; dms-badge: root.dms-badge; servers: root.servers;
-                        matrix-build: root.matrix-build;
                         navigate-dms => { root.navigate-dms(); }
                         navigate-server(id) => { root.navigate-server(id); }
                         toggle-folder(id) => { root.toggle-folder(id); }
@@ -3460,11 +3439,6 @@ export component YapfastWindow inherits Window {
                                     color: Theme.secondary; font-size: 14px; font-weight: 500; wrap: word-wrap; vertical-alignment: center; horizontal-stretch: 1;
                                 }
                             }
-                        }
-                        if !root.preview && !root.trusted: VerifyBanner {
-                            busy: root.busy; recovery <=> root.recovery;
-                            recover => { root.recover(); }
-                            refresh-trust => { root.refresh-trust(); }
                         }
                         if root.graphics-notice != "": Banner { text <=> root.graphics-notice; dismissed => { root.graphics-notice = ""; } }
                         if root.notice != "": Banner { text: root.notice; dismissed => { root.dismiss-notice(); } }
@@ -4782,13 +4756,11 @@ export component YapfastWindow inherits Window {
             animate <=> root.animate;
             reply-ping <=> root.reply-ping-default; strip-tracking <=> root.strip-tracking;
             collapse-long <=> root.collapse-long;
-            matrix: root.matrix-build; discord: root.discord-linked;
             preferences-changed => { root.preferences-changed(); }
         }
         if root.settings-section == 3: NotificationSettings {
             notifications <=> root.notifications; notification-text <=> root.notification-text;
             flash-taskbar <=> root.flash-taskbar;
-            matrix: root.matrix-build; discord: root.discord-linked;
             preferences-changed => { root.preferences-changed(); }
         }
         if root.settings-section == 5: SoundSettings {
@@ -4825,10 +4797,8 @@ export component YapfastWindow inherits Window {
             open-discord-captcha => { root.open-discord-captcha(); }
         }
         if root.settings-section == 4 && root.discord-linked: DiscordSettings {
-            matrix-build: root.matrix-build;
             show-hidden-channels: root.show-hidden-channels; sync-discord-reads: root.sync-discord-reads;
             show-idle: root.show-idle;
-            unlink-discord => { root.unlink-discord(); }
             show-idle-toggled(shown) => { root.show-idle = shown; root.show-idle-toggled(shown); }
             hide-blocked: root.hide-blocked;
             hide-blocked-toggled(hide) => { root.hide-blocked = hide; root.hide-blocked-toggled(hide); }
@@ -5380,7 +5350,7 @@ export component YapfastWindow inherits Window {
     new-dm-motion := PopupMotion { open: root.new-dm-open; }
     if new-dm-motion.shown: NewDmDialog {
         motion: new-dm-motion.amount;
-        new-dm-query <=> root.new-dm-query; matrix: root.matrix-build;
+        new-dm-query <=> root.new-dm-query;
         new-dm-people: root.new-dm-people; new-dm-starting: root.new-dm-starting; new-dm-note: root.new-dm-note;
         new-dm-search => { root.new-dm-search(); }
         start-dm(index) => { root.start-dm(index); }

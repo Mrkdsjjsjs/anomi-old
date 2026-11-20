@@ -1,0 +1,48 @@
+[package]
+name = "yapfast-http"
+version = "0.1.0"
+edition = "2024"
+# wreq 0.16 and wreq-util 0.2 ask for Rust 1.98.
+rust-version = "1.98"
+publish = false
+license = "GPL-3.0-or-later"
+description = "Yapfast's HTTPS and WebSocket connections, each presenting as the same Firefox"
+
+[lib]
+# No documentation examples run as tests: rustdoc would read the whole
+# crate on every `cargo test` for none.
+doctest = false
+
+[dependencies]
+anyhow.workspace = true
+bytes = "1"
+# A response's body a frame at a time, as wreq's Response gives it.
+http-body-util = "0.1"
+# The certificates the system trusts, as DER, for BoringSSL's store: what
+# rustls-platform-verifier gave the connections before. Already in the tree.
+rustls-native-certs = "0.8"
+tracing.workspace = true
+# HTTP/1.1 and HTTP/2 over BoringSSL, with control of the ClientHello, the
+# HTTP/2 settings, priorities and pseudo-header order, and the order and case
+# of headers. No default features: the system's certificates rather than
+# webpki's bundle, and proxies from the environment alone. The decoders take
+# the encodings Firefox's Accept-Encoding offers; `cookies` lets
+# yapfast-discord give it Discord's cookie jar.
+wreq = { version = "0.16.4", default-features = false, features = ["tokio-rt", "cookies", "gzip", "brotli", "deflate", "zstd"] }
+# wreq's profiles of browsers: Firefox's TLS, HTTP/2 and navigation headers.
+# `emulation-compression` puts Firefox's Accept-Encoding among those headers.
+wreq-util = { version = "0.2.1", default-features = false, features = ["emulation", "emulation-compression"] }
+
+# libwebrtc carries its own BoringSSL, most of it renamed LK_*, but about 480
+# of its symbols keep BoringSSL's names (OPENSSL_sk_*, BIO_meth_*,
+# CRYPTO_gcm128_*, SSL_CTX_add1_credential, ...). `prefix-symbols` renames
+# every symbol of wreq's BoringSSL to btls_sys_*, with nm and objcopy, so the
+# two never meet. btls-sys can't do it for Windows targets, where it would
+# still prefix the bindings and leave them unlinked, so it stays off there;
+# see docs/building.md.
+[target.'cfg(target_os = "linux")'.dependencies]
+wreq = { version = "0.16.4", default-features = false, features = ["prefix-symbols"] }
+
+[dev-dependencies]
+# A plain HTTP/1.1 listener the tests read requests' heads from.
+tokio = { workspace = true, features = ["macros", "io-util"] }

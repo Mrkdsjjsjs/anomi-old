@@ -231,8 +231,11 @@ fn one<'a>(vm: &'a Vm, motion: Motion, frame: Frame, opened: &Opened) -> layer::
     let content = content::content(vm, motion, opened.layer);
     let look = match opened.layer {
         // Go Live is Discord's dialog in the middle; while live the same
-        // layer is the stream's menu at its button.
-        Layer::Share if vm.voice.share.live.is_none() => Look::Dialog { settings: false },
+        // layer is the stream's menu at its button; the bitrate typed by
+        // hand, from either, is a small dialog in the middle.
+        Layer::Share if vm.voice.share.live.is_none() || vm.voice.share.entry.is_some() => {
+            Look::Dialog { settings: false }
+        }
         layer => look(layer),
     };
     let close = Intent::Shell(shell::Intent::Close(opened.layer));

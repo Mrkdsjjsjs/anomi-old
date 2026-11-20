@@ -160,8 +160,10 @@ Discord server, each button with its mark.
 The look is off until a person turns on Check for updates, so a fresh install
 makes no request to GitHub. On, Yapfast looks when it starts and every six
 hours while it runs, with one request for the list of releases
-(`api.github.com/repos/yapfast/yapfast/releases`) that carries only
-`Yapfast/VERSION` as its user agent and no account or identifier. A look nobody
+(`api.github.com/repos/yapfast/yapfast/releases`), made as the browser every
+connection of Yapfast's presents as opens an address
+([how Yapfast presents itself](discord/README.md#how-yapfast-presents-itself)),
+with no account, cookie or identifier. A look nobody
 asked for tells of a newer release in a notification, once for each release
 (`announced_update` in `layout.json`), unless notifications are off or the
 release was skipped; clicking it opens About. Check now looks once, whatever

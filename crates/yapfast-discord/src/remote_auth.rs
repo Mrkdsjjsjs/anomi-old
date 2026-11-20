@@ -21,21 +21,15 @@ use futures_util::{SinkExt, StreamExt};
 use rsa::{Oaep, RsaPrivateKey, pkcs8::EncodePublicKey, rand_core::OsRng};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use tokio_tungstenite::tungstenite::{
-    Message,
-    client::IntoClientRequest,
-    http::{HeaderValue, header},
-};
+use tokio_tungstenite::tungstenite::Message;
 use yapfast_lang::tr;
 
 use crate::{
     api::Api,
     captcha::{self, Captcha},
-    client, ready, websocket,
+    client, ready,
+    websocket::{self, Socket},
 };
-
-type Socket =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 const URL: &str = "wss://remote-auth-gateway.discord.gg/?v=2";
 /// The key size Discord's web client uses.
@@ -95,17 +89,7 @@ pub async fn link(mut step: impl FnMut(Step)) -> Result<String> {
         }
         None => URL.to_owned(),
     };
-    let mut request = url.into_client_request()?;
-    let headers = request.headers_mut();
-    headers.insert(
-        header::USER_AGENT,
-        HeaderValue::from_static(client::user_agent()),
-    );
-    headers.insert(
-        header::ORIGIN,
-        HeaderValue::from_static("https://discord.com"),
-    );
-    let (mut socket, _) = websocket::connect(request)
+    let mut socket = websocket::connect(&url)
         .await
         .context(tr!("Can't reach Discord's login service."))?;
     let mut heartbeat = tokio::time::interval(Duration::from_secs(40));

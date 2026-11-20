@@ -38,10 +38,7 @@ rustPlatform.buildRustPackage {
     lockFile = ../Cargo.lock;
     # One crate per Git repository and commit; update a hash with the commit.
     outputHashes = {
-      "const_panic-0.2.15" = "sha256-zEmo8lKncnNhn2LL5aRT95AZD/LqjmNcRg2qTKXLcic=";
       "deep_filter-0.5.7-pre" = deepFilterHash;
-      "matrix-rtc-bridge-0.4.0-rc.1" = "sha256-Zm+5xARhyrix22Ihz2fesWkwg21FaT/eqi240eT1lnQ=";
-      "matrix-sdk-0.19.1" = "sha256-MzEIaDxJVssAiTd2r7qRSdkZvD+IYpC71shuJU5TATE=";
       "slint-1.19.0" = "sha256-gAu/zH5z6UrlEolvzpmcjsFZlJG2PWV96nNRgrdKyFs=";
     };
   };
@@ -51,6 +48,9 @@ rustPlatform.buildRustPackage {
     pkg-config cmake llvmPackages_21.clang llvmPackages_21.llvm protobuf
     # Assembles x264's x86-64 code (vendor/x264-src).
     nasm
+    # btls-sys, wreq's BoringSSL, applies its patches with git in the sandbox
+    # too; the nm and objcopy that rename its symbols are stdenv's.
+    git
     # Skia's build script fetches its archive with curl, even from a file:// URL.
     curl makeWrapper rustPlatform.bindgenHook
   ];

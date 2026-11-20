@@ -1,4 +1,4 @@
-// Matrix sync's encrypted-event futures exceed rustc's default trait depth.
+// Deeply nested futures exceed rustc's default trait depth.
 #![recursion_limit = "256"]
 // Opened from Explorer, Yapfast opens no console window beside its own; see
 // `has_console`.
@@ -57,8 +57,6 @@ mod zoom;
 
 use anyhow::{Context, Result, bail};
 use yapfast_core::{cli, logging, runtime::BackgroundRuntime};
-#[cfg(feature = "matrix")]
-use yapfast_core::{experiment, voice_demo};
 
 /// glibc maps a block of 128 KiB or more on its own and unmaps it when freed,
 /// but each such free raises that threshold to the block's size, up to 32 MiB:
@@ -95,12 +93,7 @@ fn main() -> Result<()> {
     let renderer = renderer_argument(&mut arguments)?;
     let background = flag_argument(&mut arguments, "--background");
     let mut links: Vec<String> = handed.clone().ok().flatten().into_iter().collect();
-    if !arguments
-        .first()
-        .is_some_and(|argument| argument == "session")
-    {
-        links.extend(link_arguments(&mut arguments));
-    }
+    links.extend(link_arguments(&mut arguments));
     if links.len() > 1 {
         bail!("specify one Discord link");
     }
@@ -128,13 +121,6 @@ fn main() -> Result<()> {
     yapfast_core::init_tls()?;
 
     let runtime = BackgroundRuntime::new().context("could not start background workers")?;
-    #[cfg(feature = "matrix")]
-    if arguments
-        .first()
-        .is_some_and(|argument| argument == "session")
-    {
-        return runtime.block_on(cli::session(&arguments[1..]));
-    }
     let start = Start {
         renderer,
         background,
@@ -158,13 +144,8 @@ fn main() -> Result<()> {
         [argument] if argument == "--smoke-test" => {
             runtime.block_on(runtime.spawn(yapfast_core::check_build()))?;
             println!(
-                "Yapfast {}: Tokio, LiveKit{}{} build check passed.",
+                "Yapfast {}: Tokio, LiveKit{} build check passed.",
                 env!("CARGO_PKG_VERSION"),
-                if cfg!(feature = "matrix") {
-                    ", Matrix SDK, MatrixRTC"
-                } else {
-                    ""
-                },
                 if cfg!(feature = "discord") {
                     ", Discord voice"
                 } else {
@@ -173,24 +154,14 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
-        #[cfg(feature = "matrix")]
-        [argument] if argument == "--voice-demo" => {
-            runtime.block_on(voice_demo::provision()).map(|_| ())
-        }
         [argument] if argument == "--audio-devices" => cli::audio_devices(),
-        #[cfg(feature = "matrix")]
-        [argument] if argument == "--call-experiment" => runtime.block_on(experiment::run()),
-        #[cfg(feature = "matrix")]
-        [argument, resume, path] if argument == "--call-experiment" && resume == "--resume" => {
-            runtime.block_on(experiment::resume(path.into()))
-        }
         [argument] if argument == "--version" || argument == "-V" => {
             println!("{}", build_info::current().summary());
             Ok(())
         }
         [argument] if argument == "--help" || argument == "-h" => {
             println!(
-                "Usage: yapfast [--preview] [--data-dir PATH] [--renderer gpu|software] [--background] [LINK]\n       yapfast [--smoke-test | --version | --help | --release-discord-links]\n       yapfast --call-experiment [--resume PATH]\n       yapfast [--voice-demo | --audio-devices]\n       yapfast session login --homeserver URL --user USER --password-stdin [--data-dir PATH]\n       yapfast session status [--data-dir PATH]\n       yapfast session recover --key-stdin [--data-dir PATH]\n       yapfast session logout [--data-dir PATH]\n\nWithout arguments, opens native Slint chat and restores a saved session.\n--renderer selects Skia Software or Skia GPU for this start, over the setting.\nIf Skia GPU fails to start, Yapfast restarts with Skia Software.\n--background starts in the system tray with a saved session, as starting at sign-in does.\nLINK opens a Discord server, channel, message, profile or invite link in Yapfast.\n--release-discord-links gives discord:// links back to the app that had them, as uninstalling does.\n--preview opens local sample conversations without connecting to Matrix.\n--smoke-test checks the linked stack without signing in or opening audio devices.\n--version prints which build this is: its version, whether it is a stable release, a nightly or a development build, and its commit.\n--call-experiment creates disposable local accounts and checks encrypted synthetic audio. Start scripts/test-stack up first.\n--voice-demo creates two local accounts and a server with encrypted text and voice channels.\n--audio-devices lists native audio devices and cameras without recording.\nSession commands support password sign-in. Secrets are read from stdin."
+                "Usage: yapfast [--preview] [--data-dir PATH] [--renderer gpu|software] [--background] [LINK]\n       yapfast [--smoke-test | --version | --help | --release-discord-links]\n       yapfast --audio-devices\n\nWithout arguments, opens native Slint chat and restores a saved session.\n--renderer selects Skia Software or Skia GPU for this start, over the setting.\nIf Skia GPU fails to start, Yapfast restarts with Skia Software.\n--background starts in the system tray with a saved session, as starting at sign-in does.\nLINK opens a Discord server, channel, message, profile or invite link in Yapfast.\n--release-discord-links gives discord:// links back to the app that had them, as uninstalling does.\n--preview opens local sample conversations without connecting to Discord.\n--smoke-test checks the linked stack without signing in or opening audio devices.\n--version prints which build this is: its version, whether it is a stable release, a nightly or a development build, and its commit.\n--audio-devices lists native audio devices and cameras without recording."
             );
             Ok(())
         }
@@ -475,9 +446,9 @@ mod tests {
             arguments,
             ["--data-dir", "folder", "https://example.com/channels/10/11"]
         );
-        let mut arguments = strings(&["session", "status"]);
+        let mut arguments = strings(&["--preview", "--smoke-test"]);
         assert!(link_arguments(&mut arguments).is_empty());
-        assert_eq!(arguments, ["session", "status"]);
+        assert_eq!(arguments, ["--preview", "--smoke-test"]);
     }
 
     #[cfg(all(feature = "desktop", feature = "discord"))]

@@ -1,7 +1,6 @@
 # Channels and messages
 
-Yapfast shows Discord live from its own Discord connection. Every server, channel
-and DM is visible without copying anything into Matrix.
+Yapfast shows Discord live from its own Discord connection.
 
 Yapfast lists the linked account's Discord servers in the rail with their
 channels. Channels the account's roles and channel overwrites keep it out of
@@ -150,8 +149,8 @@ once while Yapfast subscribes, and Discord's sync replaces it. A list
 on screen that Discord doesn't send is asked for again once it's 10 minutes
 old. When no list comes within 8 seconds of opening a channel, the panel
 says Discord didn't send one instead of loading on, and the header says
-"Members" until a count is known. A build without Matrix shows the Discord
-account's name, avatar and connection in the bottom-left panel.
+"Members" until a count is known. The bottom-left panel shows the Discord
+account's name, avatar and connection.
 
 Yapfast starts from Discord as it last saw it, kept in the data directory by
 `yapfast_discord::cache`, and Discord's answers replace it as they arrive:
@@ -195,12 +194,9 @@ while Yapfast runs, the write makes the folder again. While Discord is
 unreachable, an open channel shows what was saved, waits, and loads once
 Yapfast is back, rather than showing an error.
 
-- Discord servers appear in the server rail with a Discord badge, and Discord
-  DMs appear in the DM list with the same badge. A build without Matrix leaves
-  the badge off, since everything in it is Discord's.
-- A build without Matrix leaves out the composer's line about encryption and
-  keys, since everything in it is Discord's; what stops sending still shows
-  there. The account's dot in the bottom-left shows its Discord status: idle,
+- Discord servers and DMs carry no Discord badge, since everything in
+  Yapfast is Discord's.
+- The composer's line says only what stops sending. The account's dot in the bottom-left shows its Discord status: idle,
   do not disturb, or the grey ring when invisible or disconnected.
 - Discord servers keep the order the account's server list has in Discord,
   from `guild_folders` in its settings, and follow it when it changes
@@ -428,7 +424,7 @@ Yapfast is back, rather than showing an error.
   a "Spoiler" label until clicked. Revealing lasts while Yapfast runs. The eye
   on a file waiting in the composer marks it as a spoiler, which blurs its
   thumbnail; Yapfast uploads it as `SPOILER_` and its name, as Discord's client
-  does. Matrix has no spoiler for a file, so its rooms don't offer the eye.
+  does.
 - Custom emoji show as pictures: in messages, as reactions and in the emoji
   picker, which lists them by server after the frequently used ones, the open
   server's first. In messages Yapfast draws them as text: each emoji whose
@@ -800,7 +796,7 @@ The same rules decide which the person may use there as for slash commands.
   channel has none: Apps offers the open channel's commands.
 - A person's menu has it before Invite to server and friendship, in the open
   server channel or DM; a DM's own menu in the list has it while that DM is
-  open. Matrix people have none.
+  open.
 - Opening either menu asks for the channel's index if it isn't kept, and
   Apps shows once it comes: a person's menu open meanwhile is built again.
 - A choice runs the command at once on that message or person, with no
@@ -1131,8 +1127,7 @@ doesn't forward, such as an ephemeral answer; forwards and voice messages
 forward again. In a server, the account needs Read Message History in the
 channel, and the server mustn't list `FORWARDING_DISABLED` among its
 features. Targets are the DMs, group DMs, channels and threads this account
-may send in, but not forums, whose posts start with a title, nor Matrix
-rooms. Once each conversation answers, Yapfast says "Message forwarded.",
+may send in, but not forums, whose posts start with a title. Once each conversation answers, Yapfast says "Message forwarded.",
 or opens the dialog again with those it failed in chosen, the message
 added kept, and Discord's reason, so Send retries them. If the forward went
 but the message added didn't, a notice says where.

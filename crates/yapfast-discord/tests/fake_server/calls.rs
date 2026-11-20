@@ -1124,6 +1124,30 @@ async fn calls_and_goes_live() {
     );
     assert_eq!(retuned["keyframes"], 2, "{retuned}");
     assert_eq!(retuned["undecryptable"], 0);
+    // With the unlock, a limit past Discord's documented 9 Mbit/s: op 12
+    // announces it, 20 Mbit/s, before the next frame, on the same
+    // connection, and the frames go on. The unlock taken away, the same
+    // limit announces 9 Mbit/s again.
+    for (unlocked, frames, bitrate) in [(true, 10, 20_000_000), (false, 12, 9_000_000)] {
+        sender.set_ceiling(Some(20_000), unlocked);
+        send_recording(&sender, SEND_CODEC, frames - 2, 2).await;
+        let announced_now = wait_for_stream_video(&discord, server, &mine.stream_key, |found| {
+            found["frames"] == frames
+        })
+        .await;
+        assert_eq!(
+            announced_now["announcedBitrate"].as_u64(),
+            Some(bitrate),
+            "{announced_now}"
+        );
+        assert_eq!(announced_now["undecryptable"], 0);
+    }
+    let unlocked = wait_for_stream_video(&discord, server, &mine.stream_key, |_| true).await;
+    assert_eq!(
+        unlocked["announcements"].as_u64(),
+        Some(announced + 3),
+        "one op 12 for each change, on the same connection"
+    );
     // What the call's details show: the video's bytes, and the one packet
     // the fake reported lost, resent.
     let sent = sender.sent();

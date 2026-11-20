@@ -85,3 +85,33 @@ fn switching_waits_for_a_pick_in_either_tab() {
     share.source = Some(4);
     assert_eq!(share.go(), Some(Intent::Switch(4)));
 }
+
+#[test]
+fn a_limit_kept_past_9_counts_as_9_until_unlocked() {
+    let locked = Share {
+        max_kbps: Some(20_000),
+        ..Share::default()
+    };
+    assert_eq!(locked.limit(), Some(DOCUMENTED_KBPS));
+    assert_eq!(locked.steps(), BITRATES, "Discord's steps alone");
+    let unlocked = Share {
+        unlocked: true,
+        ..locked
+    };
+    assert_eq!(unlocked.limit(), Some(20_000));
+    assert_eq!(
+        unlocked.steps().len(),
+        BITRATES.len() + UNLOCKED_BITRATES.len()
+    );
+    assert_eq!(unlocked.steps().last(), Some(&UNLOCKED_KBPS));
+    let past = Share {
+        max_kbps: Some(80_000),
+        ..unlocked
+    };
+    assert_eq!(past.limit(), Some(UNLOCKED_KBPS));
+    let auto = Share {
+        unlocked: true,
+        ..Share::default()
+    };
+    assert_eq!(auto.limit(), None);
+}

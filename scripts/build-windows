@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-# The Discord flavour is the release; full adds Matrix, as a separate preview.
-# Arguments after the flavour go to scripts/package-windows.py, such as
-# --no-installer.
+# The Discord flavour is the release, and the only one. Arguments after the
+# flavour go to scripts/package-windows.py, such as --no-installer.
 flavour=${1:-discord}
 case $flavour in
   discord) features=(--no-default-features --features desktop,discord) ;;
-  full) features=(--features matrix) ;;
-  *) echo "usage: scripts/build-windows [discord|full] [package-windows.py options]" >&2; exit 2 ;;
+  *) echo "usage: scripts/build-windows [discord] [package-windows.py options]" >&2; exit 2 ;;
 esac
 shift $(($# > 0 ? 1 : 0))
 rustup target add x86_64-pc-windows-msvc

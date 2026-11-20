@@ -143,9 +143,8 @@ pub enum Navigation {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NewDm {
     pub query: String,
-    /// Who each network found for the query.
+    /// Who Discord found for the query.
     pub discord: Vec<Contact>,
-    pub matrix: Vec<Contact>,
     /// A DM is starting.
     pub starting: bool,
     pub error: Option<String>,
@@ -252,9 +251,9 @@ impl ClearAfter {
 }
 
 impl NewDm {
-    /// Everyone found, Discord's first.
+    /// Everyone found.
     pub fn people(&self) -> impl Iterator<Item = &Contact> {
-        self.discord.iter().chain(&self.matrix)
+        self.discord.iter()
     }
 }
 
@@ -1861,14 +1860,8 @@ pub enum Action {
     /// The emoji picker opened: every custom emoji's picture not yet in the
     /// disk cache is fetched to it, once a session, after whatever shows.
     CacheEmojiPictures,
-    Login {
-        homeserver: String,
-        username: String,
-        password: String,
-    },
     Restore,
-    Recover(String),
-    RefreshTrust,
+    /// Connect to Discord again now, where its connection was lost.
     RetrySync,
     Logout,
     Preview,
@@ -3600,25 +3593,12 @@ impl Application {
             Action::KeepEmojiPictures(keep) => self.keep_emoji_pictures(keep),
             Action::CacheEmojiPictures => self.cache_emoji_pictures(),
             Action::Earlier => self.earlier(),
-            Action::Login {
-                homeserver,
-                username,
-                password,
-            } => self.login(homeserver, username, password),
             Action::Restore => {
                 if self.state.busy || self.state.account.is_some() || self.state.preview {
                     vec![]
                 } else {
                     self.start(chat::Start::Restore)
                 }
-            }
-            Action::Recover(key) => self.recover(key),
-            Action::RefreshTrust => {
-                if self.state.busy || self.state.preview || self.state.account.is_none() {
-                    return vec![];
-                }
-                self.state.busy = true;
-                vec![Effect::Backend(Command::RefreshTrust)]
             }
             Action::RetrySync => {
                 if self.state.busy || self.state.preview || self.state.account.is_none() {
@@ -4435,19 +4415,11 @@ impl Application {
                     self.state.members = Some(members.map(Arc::new));
                 }
             }
-            Event::People {
-                query,
-                discord,
-                people,
-            } => {
+            Event::People { query, people } => {
                 if let Some(new_dm) = &mut self.state.new_dm
                     && new_dm.query.trim() == query.trim()
                 {
-                    if discord {
-                        new_dm.discord = people;
-                    } else {
-                        new_dm.matrix = people;
-                    }
+                    new_dm.discord = people;
                 }
             }
             Event::DmStarted(Ok(room)) => {
@@ -4871,13 +4843,6 @@ impl Application {
                 Ok(picture) => return vec![Effect::CopyPicture(picture)],
                 Err(error) => self.state.notice = Some(error.into()),
             },
-            Event::Trust { trusted, error } => {
-                self.state.busy = false;
-                self.state.trusted = trusted;
-                self.state.notice = error.map(str::to_owned).or_else(|| {
-                    (!trusted).then(|| yapfast_lang::tr!("This device is still unverified. Verify it in another client or enter your recovery key.").into())
-                });
-            }
             Event::Sync(online) => self.state.online = online,
             Event::Error(error) => {
                 self.state.busy = false;
@@ -4890,11 +4855,7 @@ impl Application {
 
     fn start(&mut self, start: chat::Start) -> Vec<Effect> {
         self.state.busy = true;
-        self.state.notice = Some(if cfg!(feature = "matrix") {
-            yapfast_lang::tr!("Connecting to Matrix...").into()
-        } else {
-            yapfast_lang::tr!("Connecting to Discord...").into()
-        });
+        self.state.notice = Some(yapfast_lang::tr!("Connecting to Discord...").into());
         vec![Effect::Start(start)]
     }
 

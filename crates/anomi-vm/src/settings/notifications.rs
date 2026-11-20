@@ -12,10 +12,6 @@ pub struct Notifications {
     pub text: bool,
     /// Flash the taskbar for a message that notifies.
     pub flash_taskbar: bool,
-    /// Whether a Matrix account is in use: its rules decide what notifies.
-    pub matrix: bool,
-    /// Whether a Discord account is in use: each server's settings decide.
-    pub discord: bool,
 }
 
 /// The Notifications settings page: what a click or a key on it asks for.

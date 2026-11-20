@@ -14,7 +14,7 @@ async fn lists_dms_and_notifies() {
         general,
         ..
     } = Fixture::start("lists_dms_and_notifies").await;
-    let control = reqwest::Client::new();
+    let control = yapfast_http::wreq::Client::new();
     let mut live = discord.live();
     // DMs and message requests, the latest first; each unread message in a
     // DM counts as a mention, and requests count none.

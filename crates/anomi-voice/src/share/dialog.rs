@@ -170,8 +170,8 @@ fn footer<'a>(share: &'a Share, motion: Motion) -> Element<'a, Intent> {
         .boxed()
 }
 
-/// The raised card, its edge and its shadow.
-fn face(theme: &Theme) -> container::Style {
+/// The raised card, its edge and its shadow; the hand entry's too.
+pub(super) fn face(theme: &Theme) -> container::Style {
     let palette = theme.palette();
     container::Style {
         background: Some(Background::Color(palette.raised)),

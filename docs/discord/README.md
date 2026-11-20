@@ -2,14 +2,13 @@
 
 | Area | Works on Linux | Open |
 | --- | --- | --- |
-| [Linking](#account-linking) | QR code from Settings, or the sign-in of a build without Matrix; unlinking; Discord's captcha, in the browser | A captcha solved against real Discord |
+| [Linking](#account-linking) | QR code on the sign-in screen; unlinking by signing out; Discord's captcha, in the browser | A captcha solved against real Discord |
 | [Voice](voice.md) | Server voice channels, [a card of who is in one](voice.md#who-is-in-a-voice-channel), [how long each one's call has gone on](voice.md#how-long-a-channels-call-has-gone-on), mute, deafen, per-person volume, [moving people to another channel](servers.md#someones-menu-in-a-voice-channel) from their menu or [by dragging them](servers.md#dragging-someone-to-another-voice-channel), voice gate with its sensitivity, [a microphone test](../voice.md#microphone-test), [push-to-talk](voice.md#push-to-talk) and [keybinds](../keybinds.md) for mute, deafen and the input mode, [DeepFilterNet noise suppression](voice.md#microphone) and its strength, taking a room's echo out, [camera video](voice.md#camera-video), [the soundboard](voice.md#soundboard) | A check of Windows audio, cameras and keybinds on real Windows, and of keybinds on real Wayland desktops |
 | [DM calls](voice.md#dm-calls) | Starting, ringing, answering and declining DM and group DM calls, with cameras | A check by hand through real Discord |
 | [Go Live](go-live.md) | Sharing a screen with its sound, watching streams | A check on real Windows |
 | [Channels and messages](messages.md) | History, live updates, sending, replies, edits, reactions, files, embeds, custom emoji, stickers, spoilers, unread state and [marking a message unread](messages.md#mark-unread-and-message-links), notifications and their settings, member lists, pinning messages, pins and search, a channel's topic and header, server, category and [channel menus](servers.md#a-channels-menu), [forwarding](messages.md#forwarding), pinning channels to the top, [following channels](servers.md#following-channels), invites, [joining by invite](servers.md#joining-by-invite), [scheduled events from their links](servers.md#event-links), Discord's own channel, message and profile links, making and changing channels, [server settings](server-settings.md)' Server Profile, Engagement, Boost Perks, [Emoji](server-settings.md#emoji), [Stickers](server-settings.md#stickers), [Members](server-settings.md#members), [Roles](server-settings.md#roles), [Invites](server-settings.md#invites), [Safety Setup](server-settings.md#safety-setup), [Audit Log](server-settings.md#audit-log), [Bans](server-settings.md#bans) and [Delete Server](server-settings.md#delete-server-and-transfer-ownership), [channel settings](server-settings.md#channel-settings) and their permissions, [two-factor authentication](server-settings.md#two-factor-authentication), threads, a channel's list of them and starting them, [forums](servers.md#forums), leaving servers, [bots' buttons, dropdown menus and forms](messages.md#bots-buttons-menus-and-forms), their radio groups, checkboxes and file uploads included, [apps' slash commands](messages.md#apps-commands), [context-menu commands](messages.md#apps) and [who used one](messages.md#who-used-an-apps-command) | The rest of a server's settings and its privacy, membership forms when joining |
 | [DMs](people.md#dms) | DMs, group DMs, message requests and spam, starting a DM, [a DM's menu](people.md#a-dms-menu): pinning, muting, closing and leaving a group | |
 | [Friends](people.md#friends-and-requests) and [profiles](people.md#profiles) | Friends list, friend requests, adding by username, profile cards with their badges, others' server tags and their servers' cards, the DM panel, custom status, [editing one's profile](people.md#editing-ones-main-profile), with its theme, name style and server tag, and [server profiles](people.md#editing-ones-server-profile), notes, friend nicknames, removing friends, ignoring, blocking and unblocking, also [from a profile](people.md#profiles), [the blocked list](people.md#friends-and-requests) | A list of the ignored; changing the username |
-| [Mirroring](#mirroring-into-matrix) | | Planned and not started |
 
 Each area has a doc of its own: [voice](voice.md) and calls, [Go
 Live](go-live.md), [channels and messages](messages.md), [servers](servers.md)
@@ -43,8 +42,7 @@ before linking, and each person decides for their own account.
 
 Behave like the official client to keep the risk low. Respect rate limits,
 never act without a user action behind it, and don't poll. Keep all Discord code
-in one crate, so a protocol change breaks only that part and Yapfast can disable it
-without affecting Matrix.
+in one crate, so a protocol change breaks only that part.
 
 ### Staying within Discord's limits
 
@@ -93,12 +91,16 @@ Yapfast follows the rules Discord documents for every client:
   cookies. One jar serves the whole process. Persistent cookies are saved,
   readable only by the user, in `discord-cookies.json` in the data directory,
   so Yapfast stays the same device across restarts. Yapfast can't pass a Cloudflare
-  challenge or captcha, so it never has a `cf_clearance` cookie.
-- **Headers.** Every API request carries what the web client's carry:
+  challenge or captcha, so it never has a `cf_clearance` cookie. Requests to
+  other sites, such as Spotify, the GIF providers and Google's storage that
+  uploads go to, go through a client without the jar, so they get none of
+  Discord's cookies and leave none of theirs.
+- **Headers.** Every API request carries what the web client's carry, besides
+  the browser's own ([how Yapfast presents itself](#how-yapfast-presents-itself)):
   `X-Super-Properties`, the same description of the client as the gateway's
-  identify, `X-Discord-Locale` and `Accept-Language` for English, and
-  `X-Discord-Timezone` with this machine's time zone. `X-Debug-Options`
-  stays off, as it does in the web client until a debug option is on.
+  identify, `X-Discord-Locale` for English, and `X-Discord-Timezone` with
+  this machine's time zone. `X-Debug-Options` stays off, as it does in the
+  web client until a debug option is on.
 - **Downloads.** Pictures and files from Discord's CDN download eight at a
   time, over one HTTP/2 connection, as a browser's requests to one host go.
   Avatars, server icons, banners, emoji and stickers have eight turns of
@@ -115,33 +117,94 @@ Yapfast follows the rules Discord documents for every client:
   connection lost to a network change or sleep doesn't hold the queue; while
   requests wait, an HTTP/2 ping that goes unanswered closes that connection.
 
-## Why not an existing bridge
+## How Yapfast presents itself
 
-[mautrix-discord](https://github.com/mautrix/discord) bridges messages through
-a service hosted next to Synapse. It has no voice, and voice matters most here.
-It also adds a Matrix user for every Discord contact, so the homeserver learns
-who each person talks to. Beeper uses the same bridge and also has no Discord
-calls.
+Yapfast is Discord's web client in Firefox, on the system it runs on:
+Firefox 151 on Linux (`X11; Ubuntu; Linux x86_64`) or on Windows 10
+(`Windows NT 10.0; Win64; x64`). Every HTTPS request and WebSocket it makes,
+to Discord and to anyone else, goes through `crates/yapfast-http`: wreq makes
+the connection over BoringSSL, and wreq-util's profile of that Firefox gives
+its TLS ClientHello (cipher suites, extensions and their order, groups, key
+shares, signature algorithms, ALPN, certificate compression, ECH GREASE:
+what JA3 and JA4 read), its HTTP/2 SETTINGS, window update, priorities and
+pseudo-header order (the Akamai fingerprint), and the headers a typed
+address sends. `yapfast_http::PROFILE` and `PLATFORM` choose the profile.
+The User-Agent, the version, `Accept-Language` (`en-US,en;q=0.5`) and the
+`browser`, `browser_version`, `browser_user_agent`, `os` and `os_version`
+of the gateway's identify and `X-Super-Properties` all come from it
+(`client.rs`), and `claims_the_browser_the_connections_are` fails if they
+part. The version is the profile's, behind the newest Firefox: claiming one
+whose TLS and HTTP/2 Yapfast can't show would give it away. A newer profile
+is `PROFILE` and wreq-util's version.
 
-A Discord bot relaying voice into a Matrix room, like
-[matrix-discord-voice-bridge](https://github.com/lukacsi/matrix-discord-voice-bridge),
-follows Discord's rules. But Discord users would hear every Yapfast user as one bot,
-it only works in servers that install the bot, and bots can't join DM calls.
+Each request carries the headers Firefox gives its kind
+(`yapfast_http::Kind`), in Firefox's order (`yapfast_http::ORDER`), whatever
+order the code adds them in, as if from the web client's page,
+`https://discord.com/channels/@me`:
+
+- The API: a script's request, with `Accept: */*`, `Accept-Encoding: gzip,
+  deflate, br, zstd`, the web client's own headers, `Origin` on all but GET,
+  the page as `Referer`, `Sec-Fetch-Dest: empty`, `Sec-Fetch-Mode: cors`,
+  `Sec-Fetch-Site: same-origin` and `TE: trailers`. Over HTTP/2 each cookie
+  goes in a field of its own, as Firefox splits them.
+- Pictures and files, from Discord's CDN, its media proxy or the GIF
+  providers: a picture's, with Firefox's image `Accept`,
+  `Referer: https://discord.com/`, `no-cors`, `cross-site` and
+  `Priority: u=5, i`. A video's parts: a video's, with its `Accept`, a
+  `Range` and no `Accept-Encoding`.
+- WebSockets, the gateway's, voice's, Go Live's, the login service's and
+  Spotify's: an HTTP/1.1 upgrade with `Origin: https://discord.com`,
+  `Connection: keep-alive, Upgrade`, `Sec-Fetch-Mode: websocket` and
+  `Pragma` and `Cache-Control: no-cache`; the frames then go through
+  tokio-tungstenite, over the patched `vendor/tungstenite`.
+- The web client's page, read for its build number, and the update check:
+  an address typed into a tab, the profile's own headers.
+- Spotify's API and the uploads to Google's storage: a script's cross-site
+  request, with `Origin`, through the client without Discord's cookies.
+
+Where Yapfast still differs from that Firefox:
+
+- No HTTP/3. Firefox moves to QUIC once a server's `Alt-Svc` offers it, as
+  Discord's Cloudflare does; Yapfast stays on HTTP/2.
+- A WebSocket's connection offers the ALPN `http/1.1` alone, since wreq
+  offers the version a request asks for, so JA4 reads `h1` there. Firefox's
+  offers `h2` and `http/1.1`, and may carry the WebSocket over HTTP/2.
+- No `Sec-WebSocket-Extensions: permessage-deflate`: tungstenite can't read
+  the compressed frames a server that took it would send.
+- No CORS preflight before Spotify's requests and uploads, and no
+  `Priority: u=1`, which Firefox gives a request a click or key starts.
+- The `Referer` of the API is always `/channels/@me`, not the page shown.
+- Voice selects Discord's `udp` protocol, as its desktop apps do; the web
+  client in a browser can only use WebRTC.
+
+`yapfast-fingerprint` shows what a fingerprint echo service sees of the
+connection, with no login, super properties or Discord cookie:
+
+```sh
+nix develop path:./nix --command cargo run --profile fast -p yapfast-discord \
+  --bin yapfast-fingerprint -- https://tls.peet.ws/api/all
+```
+
+It prints JA3, JA4, the Akamai fingerprint and the headers in the order the
+service saw them. Open the same address in Firefox 151 on the same system
+and compare; `script`, `image` and `http1` after the address ask as the web
+client's script, as a picture, or over HTTP/1.1 as the WebSockets'
+connections do. Against the fake Discord the same clients speak plain
+HTTP/1.1 and `ws://`.
 
 ## Account linking
 
 Link by QR code, the method mautrix-discord uses. Yapfast shows a code from
 Discord's remote login service, and the person scans it with the Discord phone
-app. Pasting a token and email/password login aren't offered. A build with
-Matrix links from Settings, under Discord; one without Matrix links on its
-sign-in screen, and signing out there unlinks. Either way, Yapfast first says
+app. Email/password login isn't offered. Yapfast links on its sign-in
+screen, and signing out unlinks. Yapfast first says
 that Discord doesn't allow third-party clients, so linking puts the account at
 risk, and shows the code only when asked.
 
 HTTPS requests and WebSockets alike trust the certificates the system trusts,
-through `rustls-platform-verifier`, so a reverse proxy whose CA is in the
-system's store works. The WebSockets share one TLS setup,
-`yapfast_discord::websocket`.
+which `rustls-native-certs` reads once into BoringSSL's store, so a reverse
+proxy whose CA is in the system's store works; see [how Yapfast presents
+itself](#how-yapfast-presents-itself).
 
 The remote login gateway (`wss://remote-auth-gateway.discord.gg/?v=2`, with
 Discord's web origin) works as Discord's own login page does,
@@ -186,13 +249,18 @@ listener lives only while the page waits, so nothing stays loaded afterwards.
 Whether Discord takes a solution made this way awaits a real captcha. [Joining
 by invite](servers.md#joining-by-invite) shows Discord's captchas the same way.
 
-Store the Discord token in the OS credential store, next to the Matrix session.
-The token gives full control of the account, so it never goes into Matrix, not
-even encrypted. A device that links appears in Discord as its own session.
+Store the Discord token in the OS credential store. The token gives full
+control of the account, so it never leaves this device. A device that links
+appears in Discord as its own session.
 
-Unlinking a device, from Settings or by signing out of a build without Matrix,
-leaves any Discord call, ends the session with `POST /auth/logout`, and deletes
-its token.
+Unlinking a device, by signing out, leaves any Discord call, ends the session
+with `POST /auth/logout`, and deletes its token.
+
+While the connection is lost, Yapfast waits before connecting again, longer
+each time a session ends soon after it began (`gateway::Reconnects`). The
+Reconnect button, in the account panel and on Settings' account page, ends
+that wait at once (`Discord::reconnect`); connected or connecting, it changes
+nothing, and the cap on how often Yapfast identifies holds.
 
 ## Later
 
@@ -211,7 +279,6 @@ In rough order. The browser covers these until then.
   key combinations as its key, and more than one key.
 - A server's soundboard sounds in its settings.
 - Activities, and the rest of a server's settings.
-- [Mirroring into Matrix](#mirroring-into-matrix).
 - The blocked on the friends page, beside Online and All.
 - Animated custom emoji, which show their first frame.
 - Copying custom emoji: copied text has their private code points, not
@@ -228,16 +295,6 @@ In rough order. The browser covers these until then.
   and Discord leaves out what hasn't changed. Yapfast would keep those versions
   beside its saved snapshot, fill in what READY leaves out from it, and the
   fake would answer the same way.
-
-## Mirroring into Matrix
-
-Planned, not started: copying Discord DMs and chosen server channels into
-Matrix rooms on the person's homeserver, so devices without a Discord login
-can read and reply, and history builds up there. DMs would mirror by
-default and server channels only when chosen, because large servers would
-fill the homeserver with other people's history. One linked device at a
-time would run the mirror, and the rooms' names and Discord details would
-be encrypted, so the homeserver sees only counts, sizes and timing.
 
 ## Memory
 

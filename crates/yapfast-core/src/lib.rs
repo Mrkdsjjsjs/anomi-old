@@ -1,9 +1,9 @@
 //! Yapfast's application state and native network services, independent of the UI.
-//! Matrix and Discord are the `matrix` and `discord` Cargo features.
-// Matrix sync's encrypted-event futures exceed rustc's default trait depth.
+//! Discord is the `discord` Cargo feature.
+// Deeply nested futures exceed rustc's default trait depth.
 #![recursion_limit = "256"]
-// A build without networks only runs the preview and device checks.
-#![cfg_attr(not(any(feature = "matrix", feature = "discord")), allow(dead_code))]
+// A build without Discord only runs the preview and device checks.
+#![cfg_attr(not(feature = "discord"), allow(dead_code))]
 
 use anyhow::Context;
 /// The Discord protocol, for clients that hand the application Discord's
@@ -18,8 +18,6 @@ pub use audio_io::{set_windows_effects, silence_audio};
 pub mod backend;
 pub mod blocks;
 pub mod call_details;
-#[cfg(feature = "matrix")]
-pub mod calls;
 pub mod camera;
 pub mod chat;
 pub mod cli;
@@ -50,8 +48,6 @@ pub mod echo_gate;
 pub mod emoji;
 #[cfg(feature = "discord")]
 pub mod encode;
-#[cfg(feature = "matrix")]
-pub mod experiment;
 pub mod frames;
 pub mod keybinds;
 pub mod layout_file;
@@ -60,14 +56,6 @@ pub mod links;
 pub mod logging;
 #[cfg(feature = "discord")]
 mod lottie;
-#[cfg(feature = "matrix")]
-mod matrix_chat;
-#[cfg(feature = "matrix")]
-mod matrix_media;
-#[cfg(feature = "matrix")]
-mod matrix_video;
-#[cfg(feature = "matrix")]
-mod matrix_voice;
 pub mod mention;
 pub mod meter;
 pub mod network;
@@ -80,8 +68,6 @@ pub mod push_to_talk;
 #[cfg(feature = "discord")]
 pub mod ring;
 pub mod runtime;
-#[cfg(feature = "matrix")]
-pub mod session;
 #[cfg(feature = "discord")]
 pub mod soundboard;
 pub mod sounds;
@@ -99,14 +85,12 @@ pub mod video;
 #[cfg(feature = "discord")]
 pub mod video_player;
 pub mod voice;
-#[cfg(feature = "matrix")]
-pub mod voice_demo;
 #[cfg(feature = "discord")]
 mod voice_message;
 pub mod voice_roster;
 pub mod volume;
 
-/// Install the TLS provider before starting Matrix or calling services.
+/// Install the TLS provider before calling services.
 pub fn init_tls() -> anyhow::Result<()> {
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
@@ -122,8 +106,8 @@ pub fn default_directory() -> anyhow::Result<std::path::PathBuf> {
 
 /// Keeps the cookies Discord sets, and the account as last seen, in `root`
 /// across restarts. A missing `root` is made readable only by its owner
-/// first, as the Matrix session store asks of it; the caches' folders
-/// would otherwise make it with the default permissions.
+/// first; the caches' folders would otherwise make it with the default
+/// permissions.
 #[cfg(feature = "discord")]
 pub fn keep_discord_files(root: &std::path::Path) {
     let mut folder = std::fs::DirBuilder::new();
@@ -140,11 +124,6 @@ pub fn keep_discord_files(root: &std::path::Path) {
 /// Check linked native services without a session, network request or audio device.
 pub async fn check_build() {
     tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-    #[cfg(feature = "matrix")]
-    {
-        calls::check_native_build();
-        let _ = matrix_sdk::Client::builder();
-    }
     #[cfg(feature = "discord")]
     {
         let _ = yapfast_discord::voice::live_microphone();
@@ -185,12 +164,4 @@ fn check_opus() {
         peak.max(f32::from(sample).abs() / 32_768.0)
     });
     assert!(peak > 0.3, "Opus lost the tone: its peak is {peak}");
-}
-
-/// Cargo runs library tests from the crate directory; retain workspace-local fixtures.
-#[cfg(all(test, feature = "matrix"))]
-fn test_data_directory() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join(".local")
 }
